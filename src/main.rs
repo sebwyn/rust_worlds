@@ -1,3 +1,5 @@
+use rust_worlds::App;
+
 fn main() {
-    println!("Hello, world!");
+    pollster::block_on(App::run());   
 }
