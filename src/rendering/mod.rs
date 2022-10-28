@@ -1,11 +1,10 @@
 mod render_context;
 mod clear_color_renderer;
-mod surface_view;
 mod renderer;
+mod subpass;
 
 pub use render_context::RenderContext;
-pub use surface_view::SurfaceView;
+pub use subpass::Subpass;
 pub use clear_color_renderer::ClearColorRenderer;
 pub use renderer::Renderer;
 pub use renderer::RenderPass;
-pub use renderer::CommandBuffers;

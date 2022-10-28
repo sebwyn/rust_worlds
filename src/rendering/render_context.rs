@@ -3,7 +3,6 @@ use winit::window::Window;
 //this is a helper class that will be included by any renderer, so that render contexts dont need to be created in each renderer
 pub struct RenderContext {
     pub surface: wgpu::Surface,
-    pub surface_format: wgpu::TextureFormat,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
@@ -17,7 +16,7 @@ impl RenderContext {
 
         // The instance is a handle to our GPU
         // Backends::all => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
+        let instance = wgpu::Instance::new(wgpu::Backends::VULKAN);
         let surface = unsafe { instance.create_surface(window) };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
@@ -45,12 +44,10 @@ impl RenderContext {
             )
             .await
             .unwrap();
-        
-        let surface_format = surface.get_supported_formats(&adapter)[0];
 
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface_format,
+            format: surface.get_supported_formats(&adapter)[0],
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo, //VSYNC, can get supported modes here
@@ -60,7 +57,6 @@ impl RenderContext {
 
         Self {
             surface,
-            surface_format,
             device,
             queue,
             config,
@@ -68,6 +64,7 @@ impl RenderContext {
         }
     }
 
+    /*
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         if new_size.width > 0 && new_size.height > 0 {
             self.size = new_size;
@@ -76,4 +73,5 @@ impl RenderContext {
             self.surface.configure(&self.device, &self.config);
         }
     }
+    */
 }

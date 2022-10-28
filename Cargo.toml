@@ -9,7 +9,10 @@ edition = "2021"
 bevy_ecs = "0.8.1"
 cgmath = "0.18.0"
 env_logger = "0.9.1"
+imgui = "0.8.0"
+imgui-wgpu = "0.20.0"
+imgui-winit-support = {version = "0.8.2", features = ["winit-26"]}
 pollster = "0.2.5"
-wgpu = "0.13.0"
+wgpu = {version = "0.13.0"}
 wgpu_glyph = "0.17.0"
-winit = "0.27.4"
+winit = "0.26.1"

@@ -1,9 +1,7 @@
-use std::{collections::HashMap};
-
 use bevy_ecs::prelude::*;
 use winit::window::Window;
 
-use super::{RenderContext, SurfaceView};
+use super::{RenderContext, Subpass};
 
 pub trait RenderPass {
     fn get_name() -> &'static str;
@@ -12,65 +10,67 @@ pub trait RenderPass {
     fn get_render_system() -> Box<dyn System<In = (), Out = ()>>;
 }
 
-
+//strange dyn RenderPass
 pub struct RenderPassContainer {
     name: &'static str,
-    init_system: fn() -> Box<dyn System<In = (), Out = ()>>,
     render_system: fn() -> Box<dyn System<In = (), Out = ()>>,
+    init_system: fn() -> Box<dyn System<In = (), Out = ()>>,
 }
 
 pub struct Renderer {
     passes: Vec<RenderPassContainer>,
+    render_schedule: Schedule,
 }
-
-struct RenderOrder(Vec<String>);
-pub struct CommandBuffers(pub HashMap<String, wgpu::CommandBuffer>);
 
 impl Renderer {
     pub fn new() -> Self {
         Self {
             passes: Vec::new(),
+            render_schedule: Schedule::default(),
         }
     }
 
     pub async fn init(&mut self, world: &mut World, window: &Window) {
-        //construct our initialization schedule from all of the passes
+        world.insert_resource(RenderContext::new(window).await);
+
         let mut init = SystemStage::parallel();
         for pass in self.passes.iter() {
             init.add_system((pass.init_system)());
         }
-
-        world.insert_resource(RenderContext::new(window).await);
         init.run(world);
+
+        //we'll have to reconstruct this render schedule everytime we get a new stage
+
+        //from an optimization standpoint, probably want to chain these systems
+        for pass in self.passes.iter() {
+            self.render_schedule
+                .add_stage(pass.name, SystemStage::single((pass.render_system)()));
+        }
+        self.render_schedule
+            .add_stage("End pass", SystemStage::single(Self::finish_render_pass));
     }
 
     pub fn render(&mut self, world: &mut World) {
-        //create our render command
-        let mut render = SystemStage::parallel();
-        for pass in self.passes.iter() {
-            render.add_system((pass.render_system)());
-        }
 
-        //before we begin rendering, insert a resource that has our render order so we can use this when we finish rendering
-        world.insert_resource(RenderOrder(
-            self.passes
-                .iter()
-                .map(|rp_container| String::from(rp_container.name))
-                .collect(),
-        ));
+        let render_context = world.get_resource::<RenderContext>().expect("Renderer is not initialized and render was called");
+        let surface_view = render_context.surface.get_current_texture().unwrap();
 
-        //schedule
-        Schedule::default()
-            .add_system_to_stage("Begin render", Self::begin_render)
-            .add_stage("Render", render)
-            .add_system_to_stage("Finish Render", Self::finish_render)
-            .run(world);
+        //start our renderpass with the data that we need
+        world.insert_resource(Subpass::start(surface_view.texture.create_view(&wgpu::TextureViewDescriptor::default()), render_context));
+
+        //begin our pass here
+        self.render_schedule.run(world);
+
+        //present our texture to the surface
+        surface_view.present();
     }
 
     pub fn add_pass<T>(&mut self)
     where
         T: RenderPass,
     {
+        //we'll have to call the init system if we've already initialized
+
         let name = T::get_name();
         self.passes.push(RenderPassContainer {
             name,
@@ -81,36 +81,9 @@ impl Renderer {
 }
 
 impl Renderer {
-    fn begin_render(mut commands: Commands, render_context: Res<RenderContext>) {
-        //create our command buffers object
-        let command_buffers: HashMap<String, wgpu::CommandBuffer> = HashMap::new();
-        commands.insert_resource(command_buffers);
-
-        //create our view object, move this call into render_context, and handle errors there
-        let view = render_context.surface.get_current_texture().unwrap();
-        commands.insert_resource(SurfaceView::new(view));
-    }
-
-    fn finish_render(
-        render_order: Res<RenderOrder>,
-        mut command_buffers: ResMut<HashMap<String, wgpu::CommandBuffer>>,
-        mut surface_view: ResMut<SurfaceView>,
-        render_context: Res<RenderContext>,
-    ) {
-        //iterate our render order generating a command buffer vector
-        let ordered_command_buffers: Vec<wgpu::CommandBuffer> = render_order
-            .0
-            .iter()
-            .map(|name| {
-                command_buffers
-                    .remove(name)
-                    .expect("One of the render passes did not produce a command buffer")
-            })
-            .collect();
+    fn finish_render_pass(mut subpass: ResMut<Subpass>, render_context: Res<RenderContext>) {
         render_context
             .queue
-            .submit(ordered_command_buffers.into_iter());
-
-        surface_view.present();
+            .submit(std::iter::once(subpass.finish()));
     }
 }
