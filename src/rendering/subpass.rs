@@ -2,11 +2,11 @@ use super::RenderContext;
 
 pub struct Subpass {
     pub texture: wgpu::TextureView,
-    pub encoder: Option<wgpu::CommandEncoder>,
+    pub encoder: Option<wgpu::CommandEncoder>
 }
 
 impl Subpass {
-    pub fn start(texture: wgpu::TextureView, render_context: &RenderContext) -> Self {
+    pub fn start(texture: wgpu::TextureView, render_context: &RenderContext, load_op: wgpu::LoadOp<wgpu::Color>) -> Self {
         let mut encoder =
             render_context
                 .device
@@ -22,12 +22,7 @@ impl Subpass {
                     view: &texture,
                     resolve_target: None,
                     ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.4,
-                            g: 0.4,
-                            b: 0.4,
-                            a: 1.0,
-                        }),
+                        load: load_op,
                         store: true,
                     },
                 })],

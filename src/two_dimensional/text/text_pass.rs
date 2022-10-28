@@ -72,8 +72,11 @@ impl TextPass {
         }
 
         //we can't reference text pass later, because it is behind a mut reference
-        let bounds = text_pass.bounds;
-
+        let bounds = (
+            render_context.size.width as f32,
+            render_context.size.height as f32,
+        );
+        
         text_boxes.for_each(|text_box| {
             text_pass.glyph_brush.queue(Section {
                 screen_position: text_box.position,

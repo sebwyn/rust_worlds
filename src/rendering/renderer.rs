@@ -50,19 +50,15 @@ impl Renderer {
             .add_stage("End pass", SystemStage::single(Self::finish_render_pass));
     }
 
-    pub fn render(&mut self, world: &mut World) {
+    pub fn render(&mut self, world: &mut World, surface_texture: &wgpu::SurfaceTexture) {
 
-        let render_context = world.get_resource::<RenderContext>().expect("Renderer is not initialized and render was called");
-        let surface_view = render_context.surface.get_current_texture().unwrap();
+        let render_context = world.get_resource::<RenderContext>().expect("There should be a render context here");
 
         //start our renderpass with the data that we need
-        world.insert_resource(Subpass::start(surface_view.texture.create_view(&wgpu::TextureViewDescriptor::default()), render_context));
+        world.insert_resource(Subpass::start(surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default()), render_context, wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.2, b: 0.1, a: 1.0} )));
 
         //begin our pass here
         self.render_schedule.run(world);
-
-        //present our texture to the surface
-        surface_view.present();
     }
 
     pub fn add_pass<T>(&mut self)
