@@ -5,12 +5,11 @@ use std::{
 
 use bevy_ecs::prelude::*;
 
-use crate::rendering::{RenderContext, RenderPass, Subpass};
+use crate::graphics::{RenderContext, RenderPass, Subpass};
 use wgpu_glyph::{ab_glyph, GlyphBrush, GlyphBrushBuilder, Section, Text};
 
 //update this text pass every frame
 pub struct TextPass {
-    bounds: (f32, f32),
     glyph_brush: GlyphBrush<()>,
     staging_belt: Arc<Mutex<wgpu::util::StagingBelt>>
 }
@@ -46,15 +45,9 @@ impl TextPass {
         let glyph_brush = GlyphBrushBuilder::using_font(inconsolata)
             .build(&render_context.device, render_context.config.format);
 
-        let bounds = (
-            render_context.size.width as f32,
-            render_context.size.height as f32,
-        );
-
         let staging_belt = Arc::new(Mutex::new(wgpu::util::StagingBelt::new(1024)));
 
         commands.insert_resource(Self {
-            bounds,
             glyph_brush,
             staging_belt
         });
@@ -76,7 +69,7 @@ impl TextPass {
             render_context.size.width as f32,
             render_context.size.height as f32,
         );
-        
+
         text_boxes.for_each(|text_box| {
             text_pass.glyph_brush.queue(Section {
                 screen_position: text_box.position,

@@ -33,8 +33,7 @@ impl Subpass {
         Subpass { texture, encoder: Some(encoder)}
     }
 
-    #[inline]
-    pub fn encoder(&mut self) -> &mut wgpu::CommandEncoder {
+    pub fn _encoder(&mut self) -> &mut wgpu::CommandEncoder {
         &mut *self.encoder.as_mut().expect("Cannot access an invalid subpass") //again some more rust fucking strangeness to get a reference to data in option without moving out of option
     }
 

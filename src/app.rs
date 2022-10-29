@@ -1,56 +1,56 @@
 use std::time::Instant;
 
 use bevy_ecs::prelude::*;
-use winit::{
-    event::*,
-    event_loop::{ControlFlow, EventLoop},
-    window::{WindowBuilder, Window},
-};
+use winit::{event_loop::ControlFlow, event::{WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, Event}};
 
-use crate::{rendering::{Renderer, RenderContext}, two_dimensional::text::{TextPass, TextBox}, ui::UI};
+#[derive(Debug)]
+struct Update;
+
+use crate::{core::WindowSystem, graphics::{Renderer, RenderContext}, two_dimensional::text::{TextPass, TextBox}, ui::UI};
 
 pub struct App;
 
 impl App {
 
-    pub fn update(mut last_frame: ResMut<Instant>) {
-        let elapsed = last_frame.elapsed();
-        println!("Update delta: {}", elapsed.as_micros());
-        *last_frame = Instant::now();
-    } 
-
-
     //for now we're doing event based updates, when there are no more events we draw to the screen
     pub async fn run() {
 
         env_logger::init();
-        let event_loop = EventLoop::new();
-        let window: Window = WindowBuilder::new()
-            .with_title("Worlds")
-            .build(&event_loop)
-            .unwrap();
+        let event_loop: winit::event_loop::EventLoop<Update> = winit::event_loop::EventLoop::with_user_event();
+        //create a proxy, and start another thread
+        let update_proxy = event_loop.create_proxy();
 
+        //store the instant
+        let last_update_time = Instant::now();
+        std::thread::spawn(move || {
+            //spawn an update event every 60 seconds
+            let elapsed = last_update_time.elapsed();
+            if elapsed.as_millis() > (1000f32 / 60f32) as u128 {
+                update_proxy.send_event(Update {}).expect("Update thread is exiting");
+            }
+        });
+
+        //initialize our world
         let mut world = World::new();
-        let mut update_stage = SystemStage::parallel().with_system(Self::update);
+        WindowSystem::register_system(&mut world, "Worlds", &event_loop);
 
-        
         let mut renderer = Renderer::new();
         renderer.add_pass::<TextPass>();
+        renderer.init(&mut world).await;
+
+        let mut ui = UI::new(&mut world);
 
         //init our shit
         world.insert_resource(Instant::now());
-
         world.spawn().insert(TextBox { text: String::from("Hello World"), position: (30f32, 30f32), color: [0f32, 0f32, 0f32, 1f32], scale: 40f32 });
-
-        renderer.init(&mut world, &window).await;
-        let mut ui = UI::new(&window, world.get_resource::<RenderContext>().expect("Render context doesn't exist?"));
         event_loop.run(move |event, _, control_flow| { 
+            let my_window_id = world.get_resource::<WindowSystem>().expect("Window does not exist?").window().id();
+            
             match event {
                 Event::WindowEvent {
                     ref event,
                     window_id,
-                } if window_id == window.id() => match event {
-
+                } if window_id == my_window_id => match event {
                     //quit if they press escape or close the window
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
@@ -62,8 +62,6 @@ impl App {
                             },
                         ..
                     } => *control_flow = ControlFlow::Exit,
-
-
                     //handle resizes
                     WindowEvent::Resized(new_size) => {
                         let mut render_context = world.get_resource_mut::<RenderContext>().expect("Renderer is not initialized and render was called");
@@ -71,17 +69,14 @@ impl App {
                     },
                     _ => {}
                 },
-                Event::RedrawRequested(window_id) if window_id == window.id() => {
-                    update_stage.run(&mut world);
+                Event::RedrawRequested(window_id) if window_id == my_window_id => {
+                    
+                    world.get_resource_mut::<RenderContext>().expect("No render context").build_surface_texture();
 
-                    let surface_texture = world.get_resource::<RenderContext>().expect("Renderer is not initialized and render was called").surface.get_current_texture().unwrap();
+                    renderer.render(&mut world);
+                    ui.render(&mut world);
 
-                    renderer.render(&mut world, &surface_texture);
-
-                    let render_context = world.get_resource::<RenderContext>().expect("Renderer is not initialized and render was called");
-                    ui.render(&window, render_context, &surface_texture);
-
-                    surface_texture.present();
+                    world.get_resource_mut::<RenderContext>().expect("No render context").present();
                     /*match renderer.render() {
                         Ok(_) => {}
                         // Reconfigure the surface if lost
@@ -93,13 +88,12 @@ impl App {
                     }*/
                 }
                 Event::MainEventsCleared => {
-                    window.request_redraw();
+                    world.get_resource::<WindowSystem>().expect("No window?").window().request_redraw();
                 }
                 _ => {}
             };
 
-            ui.handle_event(&window, &event);
-    
-    });
+            ui.handle_event(&mut world, &event);
+        });
     }
 }

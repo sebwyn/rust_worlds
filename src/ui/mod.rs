@@ -1,3 +1,3 @@
 mod ui;
 
-pub use ui::{UI, ThreadableUI};
+pub use ui::UI;

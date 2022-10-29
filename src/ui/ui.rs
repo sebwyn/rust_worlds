@@ -1,9 +1,7 @@
-use std::sync::{Arc, Mutex};
-
-use winit::window::Window;
+use bevy_ecs::prelude::*;
 use imgui::*;
 
-use crate::rendering::{RenderContext, Subpass};
+use crate::{graphics::{RenderContext, Subpass}, core::WindowSystem};
 
 pub struct UI {
     pub context: imgui::Context,
@@ -11,18 +9,16 @@ pub struct UI {
     renderer: imgui_wgpu::Renderer,
 }
 
-unsafe impl Send for UI {}
-
-pub struct ThreadableUI(pub Arc<Mutex<UI>>);
-
 impl UI {
-    pub fn new(window: &Window, render_context: &RenderContext) -> Self {
+    pub fn new(world: &mut World) -> Self {
+        let render_context = world.get_resource::<RenderContext>().expect("Render Context dependency of UI is not met");
+        let window_system = world.get_resource::<WindowSystem>().expect("WindowSystem dependency of UI is not met");
 
-        let hidpi_factor = window.scale_factor();
+        let hidpi_factor = window_system.window().scale_factor();
         
         let mut imgui = imgui::Context::create();
         let mut platform = imgui_winit_support::WinitPlatform::init(&mut imgui);
-        platform.attach_window(imgui.io_mut(), window, imgui_winit_support::HiDpiMode::Default);
+        platform.attach_window(imgui.io_mut(), window_system.window(), imgui_winit_support::HiDpiMode::Default);
 
         let font_size = (13.0 * hidpi_factor) as f32;
         imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
@@ -50,14 +46,18 @@ impl UI {
         }
     }
 
-    pub fn handle_event<T>(&mut self, window: &Window, event: &winit::event::Event<T>){
-        self.platform.handle_event(self.context.io_mut(), window, event);
+    pub fn handle_event<T>(&mut self, world: &mut World, event: &winit::event::Event<T>){
+        let window_system = world.get_resource::<WindowSystem>().expect("UI lost contact with window");
+        self.platform.handle_event(self.context.io_mut(), window_system.window(), event);
     }
 
     //probably will end up moving this code out of the render cycle
-    pub fn render(&mut self, window: &Window, render_context: &RenderContext, surface_texture: &wgpu::SurfaceTexture) {
+    pub fn render(&mut self, world: &mut World) {
+        let render_context = world.get_resource::<RenderContext>().expect("UI lost contact with render context");
+        let window_system = world.get_resource::<WindowSystem>().expect("UI lost contact with window");
+
         self.platform
-            .prepare_frame(self.context.io_mut(), window).expect("Unable to prepare frame");
+            .prepare_frame(self.context.io_mut(), window_system.window()).expect("Unable to prepare frame");
         let ui = self.context.frame();
 
         {
@@ -83,6 +83,8 @@ impl UI {
                     ui.text("Frametime Unkown");
                 });*/
         }
+
+        let surface_texture = render_context.get_surface_texture();
 
         //we need to create a render pass here
         let mut ui_pass = Subpass::start(surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default()), render_context, wgpu::LoadOp::Load);

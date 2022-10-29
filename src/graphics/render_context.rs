@@ -6,7 +6,9 @@ pub struct RenderContext {
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub config: wgpu::SurfaceConfiguration,
-    pub size: winit::dpi::PhysicalSize<u32>
+    pub size: winit::dpi::PhysicalSize<u32>,
+
+    surface_texture: Option<wgpu::SurfaceTexture>,
 }
 
 impl RenderContext {
@@ -61,7 +63,22 @@ impl RenderContext {
             queue,
             config,
             size,
+
+            surface_texture: None
         }
+    }
+
+    pub fn build_surface_texture(&mut self) {
+        self.surface_texture = Some(self.surface.get_current_texture().unwrap());
+    }
+
+    pub fn get_surface_texture(&self) -> &wgpu::SurfaceTexture {
+        & *self.surface_texture.as_ref().unwrap()
+    }
+
+    pub fn present(&mut self) {
+        let surface = std::mem::replace(&mut self.surface_texture, None).expect("No valid surface!");
+        surface.present();
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {

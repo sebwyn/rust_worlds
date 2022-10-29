@@ -1,5 +1,6 @@
 use bevy_ecs::prelude::*;
-use winit::window::Window;
+
+use crate::core::WindowSystem;
 
 use super::{RenderContext, Subpass};
 
@@ -30,8 +31,11 @@ impl Renderer {
         }
     }
 
-    pub async fn init(&mut self, world: &mut World, window: &Window) {
-        world.insert_resource(RenderContext::new(window).await);
+    pub async fn init(&mut self, world: &mut World) {
+        //window is a dependency of renderer
+        let window_system = world.get_resource::<WindowSystem>().expect("WindowSystem dependency of renderer is not met");
+
+        world.insert_resource(RenderContext::new(window_system.window()).await);
 
         let mut init = SystemStage::parallel();
         for pass in self.passes.iter() {
@@ -50,9 +54,10 @@ impl Renderer {
             .add_stage("End pass", SystemStage::single(Self::finish_render_pass));
     }
 
-    pub fn render(&mut self, world: &mut World, surface_texture: &wgpu::SurfaceTexture) {
+    pub fn render(&mut self, world: &mut World) {
 
         let render_context = world.get_resource::<RenderContext>().expect("There should be a render context here");
+        let surface_texture = render_context.get_surface_texture();
 
         //start our renderpass with the data that we need
         world.insert_resource(Subpass::start(surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default()), render_context, wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.2, b: 0.1, a: 1.0} )));
@@ -65,8 +70,6 @@ impl Renderer {
     where
         T: RenderPass,
     {
-        //we'll have to call the init system if we've already initialized
-
         let name = T::get_name();
         self.passes.push(RenderPassContainer {
             name,
