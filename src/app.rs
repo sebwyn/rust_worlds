@@ -6,8 +6,10 @@ use winit::{event_loop::ControlFlow, event::{WindowEvent, KeyboardInput, Element
 #[derive(Debug)]
 struct Update;
 
-use crate::{core::WindowSystem, graphics::{Renderer, RenderContext}, two_dimensional::{text::{TextPass, TextBox}, sprite::{SpritePass, Sprite}}, ui::UI};
+use crate::{core::{WindowSystem, EventSystem}, graphics::{Renderer, RenderContext}, two_dimensional::{text::{TextPass, TextBox}, sprite::{SpritePass, Sprite}, Camera2d, CameraController2dPan}, ui::UI};
 
+//maybe some way to improve rendering performace, but it seems like we're just running into issues with high resolutions
+//and this integrated rendering, but idk performance is fucking terrible so im probably doing something wrong
 pub struct App;
 
 pub struct FrameTime(pub Duration);
@@ -42,11 +44,17 @@ impl App {
         renderer.init(&mut world).await;
 
         let mut ui = UI::new(&mut world);
+        let mut event_system = EventSystem::new();
+        event_system.init(&mut world);
 
         //init our shit
         world.insert_resource(Instant::now());
         world.spawn().insert(TextBox { text: String::from("Hello World"), position: (30f32, 30f32), color: [0f32, 0f32, 0f32, 1f32], scale: 40f32 });
-        world.spawn().insert(Sprite { position: [0f32, 0f32], dimensions: [0.25f32, 0.25f32], color: [0f32, 0f32, 0f32] });
+        world.spawn().insert(Sprite { position: [0f32, 0f32], dimensions: [10f32, 10f32], color: [0f32, 0f32, 0f32] });
+        world.spawn().insert(Camera2d::new((0f32, 0f32))).insert(CameraController2dPan::new());
+
+        let mut camera_resize_system = SystemStage::single(Camera2d::resize);
+        let mut camera_controller_system = SystemStage::single(CameraController2dPan::update);
 
         let mut last_frame = Instant::now();
         event_loop.run(move |event, _, control_flow| { 
@@ -72,10 +80,18 @@ impl App {
                     WindowEvent::Resized(new_size) => {
                         let mut render_context = world.get_resource_mut::<RenderContext>().expect("Renderer is not initialized and render was called");
                         render_context.resize(*new_size);
+
+                        //should fully parallelize all the things we want to update, or just use an event system
+    
+                        camera_resize_system.run(&mut world);
                     },
-                    _ => {}
+                    e => event_system.on_event(&mut world, e)
                 },
                 Event::RedrawRequested(window_id) if window_id == my_window_id => {
+                    event_system.update(&mut world);
+
+                    camera_controller_system.run(&mut world);
+
                     //generate frametime here, and set it as a resource
                     world.insert_resource(FrameTime(last_frame.elapsed()));
                     last_frame = Instant::now();
@@ -86,6 +102,7 @@ impl App {
                     ui.render(&mut world);
 
                     world.get_resource_mut::<RenderContext>().expect("No render context").present();
+                    
                     /*match renderer.render() {
                         Ok(_) => {}
                         // Reconfigure the surface if lost

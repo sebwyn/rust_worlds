@@ -17,7 +17,7 @@ impl Subpass {
         // Clear frame
         {
             encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Render pass"),
+                label: Some("Clear Subpass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &texture,
                     resolve_target: None,

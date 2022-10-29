@@ -1,8 +1,12 @@
 mod render_context;
-mod renderer;
-mod subpass;
-
 pub use render_context::RenderContext;
-pub use subpass::Subpass;
+
+mod renderer;
 pub use renderer::Renderer;
 pub use renderer::RenderPass;
+
+mod subpass;
+pub use subpass::Subpass;
+
+mod uniform;
+pub use uniform::Uniform;

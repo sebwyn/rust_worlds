@@ -52,7 +52,7 @@ impl RenderContext {
             format: surface.get_supported_formats(&adapter)[0],
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo, //VSYNC, can get supported modes here
+            present_mode: wgpu::PresentMode::AutoNoVsync, //VSYNC, can get supported modes here
             //alpha_mode: wgpu::CompositeAlphaMode::Auto, //doesn't exist in the version of wgpu we need to use for text rendering
         };
         surface.configure(&device, &config);

@@ -1,11 +1,12 @@
 use bevy_ecs::prelude::*;
 use wgpu::{RenderPassDescriptor, RenderPipeline};
 
-use crate::graphics::{RenderContext, RenderPass, Subpass};
+use crate::{graphics::{RenderContext, RenderPass, Subpass, Uniform}, two_dimensional::{camera::{CameraMatrix, Camera}}};
 
 use super::{sprite_vertex::SpriteVertex, Sprite};
 
 pub struct SpritePass {
+    camera_uniform: Uniform,
     render_pipeline: RenderPipeline,
 }
 
@@ -25,6 +26,9 @@ impl RenderPass for SpritePass {
 
 impl SpritePass {
     fn init(mut commands: Commands, render_context: Res<RenderContext>) {
+        //create a camera uniform
+        let camera_uniform = Uniform::new::<CameraMatrix>(render_context.as_ref(), 0);
+
         let shader = render_context
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -37,7 +41,7 @@ impl SpritePass {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
-                    bind_group_layouts: &[],
+                    bind_group_layouts: &[&camera_uniform.bind_group_layout],
                     push_constant_ranges: &[],
                 });
         //create our pipeline here
@@ -84,12 +88,13 @@ impl SpritePass {
                     multiview: None, // 5.
                 });
 
-        commands.insert_resource(Self { render_pipeline });
+        commands.insert_resource(Self { camera_uniform, render_pipeline });
     }
 
     fn render(
         sprites: Query<&Sprite>,
-        sprite_pass: Res<SpritePass>,
+        cameras: Query<&Camera>,
+        mut sprite_pass: ResMut<SpritePass>,
         mut subpass: ResMut<Subpass>,
         render_context: Res<RenderContext>,
     ) {
@@ -107,8 +112,11 @@ impl SpritePass {
             },
         );
 
-        let subpass = &mut *subpass;
+        let camera = cameras.get_single().expect("There should be a camera in the scene!");
+        //update our camera uniform
+        sprite_pass.camera_uniform.set_buffer(render_context.as_ref(), camera.get_matrix());
 
+        let subpass = &mut *subpass;
         let encoder = subpass.encoder.as_mut().unwrap();
 
         let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
@@ -125,6 +133,7 @@ impl SpritePass {
         });
 
         render_pass.set_pipeline(&sprite_pass.render_pipeline);
+        render_pass.set_bind_group(0, &sprite_pass.camera_uniform.bind_group, &[]);
         render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
         render_pass.draw(0..vertices.len() as u32, 0..1);
     }

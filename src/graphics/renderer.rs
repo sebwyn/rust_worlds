@@ -11,7 +11,7 @@ pub trait RenderPass {
 }
 
 pub struct RenderPassContainer {
-    name: &'static str,
+    _name: &'static str,
     render_system: fn() -> Box<dyn System<In = (), Out = ()>>,
     init_system: fn() -> Box<dyn System<In = (), Out = ()>>,
 }
@@ -44,10 +44,13 @@ impl Renderer {
         //we'll have to reconstruct this render schedule everytime we get a new stage
 
         //from an optimization standpoint, probably want to chain these systems
+        let mut first_pass = SystemStage::parallel();
         for pass in self.passes.iter() {
-            self.render_schedule
-                .add_stage(pass.name, SystemStage::single((pass.render_system)()));
+            first_pass
+                .add_system((pass.render_system)());
         }
+
+        self.render_schedule.add_stage("Render", first_pass);
         self.render_schedule
             .add_stage("End pass", SystemStage::single(Self::finish_render_pass));
     }
@@ -70,7 +73,7 @@ impl Renderer {
         T: RenderPass,
     {
         self.passes.push(RenderPassContainer {
-            name: T::get_name(),
+            _name: T::get_name(),
             init_system: T::get_init_system,
             render_system: T::get_render_system,
         });
