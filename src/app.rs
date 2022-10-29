@@ -6,7 +6,7 @@ use winit::{event_loop::ControlFlow, event::{WindowEvent, KeyboardInput, Element
 #[derive(Debug)]
 struct Update;
 
-use crate::{core::WindowSystem, graphics::{Renderer, RenderContext}, two_dimensional::text::{TextPass, TextBox}, ui::UI};
+use crate::{core::WindowSystem, graphics::{Renderer, RenderContext}, two_dimensional::{text::{TextPass, TextBox}, sprite::{SpritePass, Sprite}}, ui::UI};
 
 pub struct App;
 
@@ -38,6 +38,7 @@ impl App {
 
         let mut renderer = Renderer::new();
         renderer.add_pass::<TextPass>();
+        renderer.add_pass::<SpritePass>();
         renderer.init(&mut world).await;
 
         let mut ui = UI::new(&mut world);
@@ -45,6 +46,7 @@ impl App {
         //init our shit
         world.insert_resource(Instant::now());
         world.spawn().insert(TextBox { text: String::from("Hello World"), position: (30f32, 30f32), color: [0f32, 0f32, 0f32, 1f32], scale: 40f32 });
+        world.spawn().insert(Sprite { position: [0f32, 0f32], dimensions: [0.25f32, 0.25f32], color: [0f32, 0f32, 0f32] });
 
         let mut last_frame = Instant::now();
         event_loop.run(move |event, _, control_flow| { 

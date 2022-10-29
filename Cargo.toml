@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 bevy_ecs = "0.8.1"
+bytemuck = "1.12.1"
 cgmath = "0.18.0"
 env_logger = "0.9.1"
 imgui = "0.8.0"

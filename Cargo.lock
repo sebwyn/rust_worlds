@@ -1752,6 +1752,7 @@ name = "rust_worlds"
 version = "0.1.0"
 dependencies = [
  "bevy_ecs",
+ "bytemuck",
  "cgmath",
  "env_logger",
  "imgui",

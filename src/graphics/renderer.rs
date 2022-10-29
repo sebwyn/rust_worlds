@@ -7,11 +7,9 @@ use super::{RenderContext, Subpass};
 pub trait RenderPass {
     fn get_name() -> &'static str;
     fn get_init_system() -> Box<dyn System<In = (), Out = ()>>;
-    //the render system needs to write to a command buffer
     fn get_render_system() -> Box<dyn System<In = (), Out = ()>>;
 }
 
-//strange dyn RenderPass
 pub struct RenderPassContainer {
     name: &'static str,
     render_system: fn() -> Box<dyn System<In = (), Out = ()>>,
@@ -60,7 +58,8 @@ impl Renderer {
         let surface_texture = render_context.get_surface_texture();
 
         //start our renderpass with the data that we need
-        world.insert_resource(Subpass::start(surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default()), render_context, wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.2, b: 0.1, a: 1.0} )));
+        let texture_view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        world.insert_resource(Subpass::start(texture_view, render_context, wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.2, b: 0.1, a: 1.0}) ));
 
         //begin our pass here
         self.render_schedule.run(world);
@@ -70,9 +69,8 @@ impl Renderer {
     where
         T: RenderPass,
     {
-        let name = T::get_name();
         self.passes.push(RenderPassContainer {
-            name,
+            name: T::get_name(),
             init_system: T::get_init_system,
             render_system: T::get_render_system,
         });
