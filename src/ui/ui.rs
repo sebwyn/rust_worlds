@@ -1,7 +1,7 @@
 use bevy_ecs::prelude::*;
 use imgui::*;
 
-use crate::{graphics::{RenderContext, Subpass}, core::WindowSystem};
+use crate::{graphics::{RenderContext, Subpass}, core::WindowSystem, app::FrameTime};
 
 pub struct UI {
     pub context: imgui::Context,
@@ -61,12 +61,13 @@ impl UI {
         let ui = self.context.frame();
 
         {
-            let window = imgui::Window::new("Hello world");
+            let window = imgui::Window::new("Resources");
             window
                 .size([300.0, 100.0], Condition::FirstUseEver)
                 .build(&ui, || {
-                    ui.text("Hello world!");
-                    ui.text("This...is...imgui-rs on WGPU!");
+                    if let Some(frame_time) = world.get_resource::<FrameTime>() {
+                        ui.text(format!("Frametime: {}", frame_time.0.as_millis()));
+                    }
                     ui.separator();
                     let mouse_pos = ui.io().mouse_pos;
                     ui.text(format!(
@@ -74,14 +75,6 @@ impl UI {
                         mouse_pos[0], mouse_pos[1]
                     ));
                 });
-
-            /*let window = imgui::Window::new("Hello too");
-            window
-                .size([400.0, 200.0], Condition::FirstUseEver)
-                .position([400.0, 200.0], Condition::FirstUseEver)
-                .build(&ui, || {
-                    ui.text("Frametime Unkown");
-                });*/
         }
 
         let surface_texture = render_context.get_surface_texture();

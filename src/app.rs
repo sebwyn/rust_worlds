@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::time::{Instant, Duration};
 
 use bevy_ecs::prelude::*;
 use winit::{event_loop::ControlFlow, event::{WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, Event}};
@@ -9,6 +9,8 @@ struct Update;
 use crate::{core::WindowSystem, graphics::{Renderer, RenderContext}, two_dimensional::text::{TextPass, TextBox}, ui::UI};
 
 pub struct App;
+
+pub struct FrameTime(pub Duration);
 
 impl App {
 
@@ -43,6 +45,8 @@ impl App {
         //init our shit
         world.insert_resource(Instant::now());
         world.spawn().insert(TextBox { text: String::from("Hello World"), position: (30f32, 30f32), color: [0f32, 0f32, 0f32, 1f32], scale: 40f32 });
+
+        let mut last_frame = Instant::now();
         event_loop.run(move |event, _, control_flow| { 
             let my_window_id = world.get_resource::<WindowSystem>().expect("Window does not exist?").window().id();
             
@@ -70,7 +74,10 @@ impl App {
                     _ => {}
                 },
                 Event::RedrawRequested(window_id) if window_id == my_window_id => {
-                    
+                    //generate frametime here, and set it as a resource
+                    world.insert_resource(FrameTime(last_frame.elapsed()));
+                    last_frame = Instant::now();
+
                     world.get_resource_mut::<RenderContext>().expect("No render context").build_surface_texture();
 
                     renderer.render(&mut world);
