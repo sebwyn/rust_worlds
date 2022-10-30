@@ -50,7 +50,16 @@ impl App {
         //init our shit
         world.insert_resource(Instant::now());
         world.spawn().insert(TextBox { text: String::from("Hello World"), position: (30f32, 30f32), color: [0f32, 0f32, 0f32, 1f32], scale: 40f32 });
-        world.spawn().insert(Sprite { position: [0f32, 0f32], dimensions: [10f32, 10f32], color: [0f32, 0f32, 0f32] });
+        world.spawn().insert(Sprite { position: [0f32, 0f32], dimensions: [10f32, 10f32], color: [0f32, 0f32, 0f32], texture_path: String::from("purple_shit.jpg")});
+        //make a grid of sprites here
+        /*for x in 0..100 {
+            for y in 0..100 {
+                if (x + y) % 2 == 0 {
+                    world.spawn().insert(Sprite { position: [x as f32 / 10f32, y as f32 / 10f32], dimensions: [0.1f32, 0.1f32], color: [(x as f32/ 100f32), (y as f32 / 100f32), ((x + y) as f32 / 200f32)], texture_path: String::from("purple_shit.jpg") });
+                }
+            }
+        }*/
+
         world.spawn().insert(Camera2d::new((0f32, 0f32))).insert(CameraController2dPan::new());
 
         let mut camera_resize_system = SystemStage::single(Camera2d::resize);

@@ -6,7 +6,9 @@ use super::SpriteVertex;
 pub struct Sprite {
     pub position: [f32; 2],
     pub dimensions: [f32; 2],
-    pub color: [f32; 3]
+    pub color: [f32; 3],
+
+    pub texture_path: String
 }
 
 impl Sprite {

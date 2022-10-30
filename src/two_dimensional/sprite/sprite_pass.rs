@@ -1,14 +1,19 @@
+use std::{collections::HashMap};
+
 use bevy_ecs::prelude::*;
 use wgpu::{RenderPassDescriptor, RenderPipeline};
 
-use crate::{graphics::{RenderContext, RenderPass, Subpass, Uniform}, two_dimensional::{camera::{CameraMatrix, Camera}}};
+use crate::{graphics::{RenderContext, RenderPass, Subpass, Uniform, Texture, TextureBindLayout}, two_dimensional::{camera::{CameraMatrix, Camera}}};
 
 use super::{sprite_vertex::SpriteVertex, Sprite};
 
 pub struct SpritePass {
     camera_uniform: Uniform,
     render_pipeline: RenderPipeline,
+    texture_bind_layout: TextureBindLayout,
 }
+
+pub struct TextureCache(HashMap<String, (Texture, wgpu::BindGroup)>);
 
 impl RenderPass for SpritePass {
     fn get_name() -> &'static str {
@@ -29,6 +34,9 @@ impl SpritePass {
         //create a camera uniform
         let camera_uniform = Uniform::new::<CameraMatrix>(render_context.as_ref(), 0);
 
+    //create our texture layout here, and store it
+    let texture_bind_layout = TextureBindLayout::new(0, 1, &render_context);
+
         let shader = render_context
             .device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -41,7 +49,7 @@ impl SpritePass {
                 .device
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("Render Pipeline Layout"),
-                    bind_group_layouts: &[&camera_uniform.bind_group_layout],
+                    bind_group_layouts: &[&camera_uniform.bind_group_layout, texture_bind_layout.bind_group_layout()],
                     push_constant_ranges: &[],
                 });
         //create our pipeline here
@@ -88,29 +96,60 @@ impl SpritePass {
                     multiview: None, // 5.
                 });
 
-        commands.insert_resource(Self { camera_uniform, render_pipeline });
+        commands.insert_resource(Self { camera_uniform, render_pipeline, texture_bind_layout});
+        commands.insert_resource(TextureCache(HashMap::new()));
     }
 
     fn render(
         sprites: Query<&Sprite>,
         cameras: Query<&Camera>,
         mut sprite_pass: ResMut<SpritePass>,
+        mut texture_cache: ResMut<TextureCache>,
         mut subpass: ResMut<Subpass>,
         render_context: Res<RenderContext>,
     ) {
+
+        let mut staging_render_sets: HashMap<String, (&wgpu::BindGroup, Vec<SpriteVertex>)> = HashMap::new();
+
+        //construct our vertex buffers for each sprite with the same texture
+
         //construct a vertex buffer from sprites
-        let mut vertices = Vec::new();
+        //may want to do this kind of caching in an update function, idk?
         for sprite in sprites.iter() {
-            vertices.append(&mut sprite.get_vertex_buffer());
+            let sprite_texture = &sprite.texture_path;
+            if !texture_cache.0.contains_key(sprite_texture) {
+                let texture = Texture::load(&sprite.texture_path, &render_context);
+                let bind_group = sprite_pass.texture_bind_layout.create_bind_group(&texture, &render_context);
+                texture_cache.0.insert(sprite_texture.clone(), (texture, bind_group));
+            }
         }
-        let vertex_buffer = wgpu::util::DeviceExt::create_buffer_init(
-            &render_context.device,
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Sprite Vertex Buffer"),
-                contents: bytemuck::cast_slice(&vertices),
-                usage: wgpu::BufferUsages::VERTEX,
-            },
-        );
+
+        for sprite in sprites.iter() {
+            let sprite_texture = &sprite.texture_path;
+            if let Some((_, vertices)) = staging_render_sets.get_mut(sprite_texture) {
+                let mut sprite_vertices = sprite.get_vertex_buffer();
+                vertices.append(&mut sprite_vertices);
+                continue;
+            } else if let Some((_, bind_group)) = texture_cache.0.get(sprite_texture) {
+                staging_render_sets.insert(sprite_texture.clone(), (bind_group, sprite.get_vertex_buffer()));
+                continue;
+            }
+        }
+
+        let mut render_sets: Vec<(&wgpu::BindGroup, wgpu::Buffer, u32)> = Vec::new();
+        for (_, (bind_group, vertex_vec)) in staging_render_sets.into_iter() {
+            //generate our vertex buff
+            let vertex_buffer = wgpu::util::DeviceExt::create_buffer_init(
+                &render_context.device,
+                &wgpu::util::BufferInitDescriptor {
+                    label: Some("Sprite Vertex Buffer"),
+                    contents: bytemuck::cast_slice(&vertex_vec),
+                    usage: wgpu::BufferUsages::VERTEX,
+                },
+            );
+
+            render_sets.push((bind_group, vertex_buffer, vertex_vec.len() as u32));
+        }
 
         let camera = cameras.get_single().expect("There should be a camera in the scene!");
         //update our camera uniform
@@ -132,9 +171,13 @@ impl SpritePass {
             depth_stencil_attachment: None,
         });
 
+
         render_pass.set_pipeline(&sprite_pass.render_pipeline);
         render_pass.set_bind_group(0, &sprite_pass.camera_uniform.bind_group, &[]);
-        render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-        render_pass.draw(0..vertices.len() as u32, 0..1);
+        for (texture_bind_group, vertex_buffer, num_vertices) in render_sets.iter() {
+            render_pass.set_bind_group(1, texture_bind_group, &[]);
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            render_pass.draw(0..*num_vertices, 0..1);
+        }
     }
 }

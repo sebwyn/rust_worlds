@@ -10,3 +10,6 @@ pub use subpass::Subpass;
 
 mod uniform;
 pub use uniform::Uniform;
+
+mod texture;
+pub use texture::{Texture, TextureBindLayout};
