@@ -8,8 +8,8 @@ pub struct Board {
 }
 
 #[derive(Component)]
-pub struct Tile {
-    piece: Option<Entity>,
+pub struct Piece {
+    entity: Entity,
 }
 
 impl Board {
@@ -27,30 +27,42 @@ impl Board {
                 let position = [x as f32, y as f32];
                 let dimensions = [1f32, 1f32];
 
-                let tile = if y == 1 || y == 6 {
-                    Tile {
-                        piece: Some(
-                            world
-                                .spawn()
-                                .insert(
-                                    Sprite::new(position, dimensions, [1f32, 1f32, 1f32])
-                                        .with_tile_in_texture("chess_piece_bitmap.png", 2, 6, 1, 0),
-                                )
-                                .id(),
-                        ),
-                    }
-                } else {
-                    Tile { piece: None }
-                };
-
                 let tile = world
                     .spawn()
                     .insert(Sprite::new(position, dimensions, color).with_depth(1))
-                    .insert(tile)
                     .id();
                 column.push(tile);
             }
             children.push(column);
+        }
+
+        let board_data = [
+            (1, 1),
+            (1, 2),
+            (1, 3),
+            (1, 5),
+            (1, 4),
+            (1, 3),
+            (1, 2),
+            (1, 1),
+        ];
+
+        for (x, (row, col)) in board_data.iter().enumerate() {
+            let position = [x as f32, 0 as f32];
+            let dimensions = [1f32, 1f32];
+
+            let piece =
+                Piece {
+                    entity: world
+                        .spawn()
+                        .insert(
+                            Sprite::new(position, dimensions, [1f32, 1f32, 1f32])
+                                .with_tile_in_texture("chess_piece_bitmap.png", 2, 6, *row, *col),
+                        )
+                        .id(),
+                };
+
+            world.get_entity_mut(children[0][x]).unwrap().insert(piece);
         }
 
         world.spawn().insert(Self { children });
