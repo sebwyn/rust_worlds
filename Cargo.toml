@@ -20,6 +20,7 @@ pollster = "0.2.5"
 wgpu = {version = "0.13.0"}
 wgpu_glyph = "0.17.0"
 winit = "0.26.1"
+itertools = "0.10.5"
 
 [dependencies.image]
 version = "0.24"

@@ -6,7 +6,7 @@ use winit::{event_loop::ControlFlow, event::{WindowEvent, KeyboardInput, Element
 #[derive(Debug)]
 struct Update;
 
-use crate::{core::{WindowSystem, EventSystem}, graphics::{Renderer, RenderContext}, two_dimensional::{text::{TextPass, TextBox}, sprite::{SpritePass, Sprite}, Camera2d, CameraController2dPan}, ui::UI};
+use crate::{core::{WindowSystem, EventSystem}, graphics::{Renderer, RenderContext}, two_dimensional::{text::{TextPass, TextBox}, sprite::{SpritePass, Sprite}, Camera2d, CameraController2dPan}, ui::UI, Board};
 
 //maybe some way to improve rendering performace, but it seems like we're just running into issues with high resolutions
 //and this integrated rendering, but idk performance is fucking terrible so im probably doing something wrong
@@ -49,16 +49,11 @@ impl App {
 
         //init our shit
         world.insert_resource(Instant::now());
-        world.spawn().insert(TextBox { text: String::from("Hello World"), position: (30f32, 30f32), color: [0f32, 0f32, 0f32, 1f32], scale: 40f32 });
-        world.spawn().insert(Sprite { position: [0f32, 0f32], dimensions: [10f32, 10f32], color: [0f32, 0f32, 0f32], texture_path: String::from("purple_shit.jpg")});
-        //make a grid of sprites here
-        /*for x in 0..100 {
-            for y in 0..100 {
-                if (x + y) % 2 == 0 {
-                    world.spawn().insert(Sprite { position: [x as f32 / 10f32, y as f32 / 10f32], dimensions: [0.1f32, 0.1f32], color: [(x as f32/ 100f32), (y as f32 / 100f32), ((x + y) as f32 / 200f32)], texture_path: String::from("purple_shit.jpg") });
-                }
-            }
-        }*/
+        world.spawn().insert(TextBox { text: String::from("Hello World"), position: (30f32, 30f32), color: [0f32, 0f32, 0.5f32, 1f32], scale: 40f32 });
+        
+        world.spawn().insert(Sprite::new([11f32, 0f32], [0.4f32, 0.4f32], [1.0, 1.0, 1.0]).with_tile_in_texture("chess_piece_bitmap.png", 2, 6, 1, 0));
+
+        Board::init(&mut world);
 
         world.spawn().insert(Camera2d::new((0f32, 0f32))).insert(CameraController2dPan::new());
 

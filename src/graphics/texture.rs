@@ -6,6 +6,9 @@ use std::fs::File;
 use std::io::Read;
  
 pub struct Texture {
+    pub width: u32,
+    pub height: u32,
+
     texture: wgpu::Texture,
     texture_view: wgpu::TextureView,
     sampler: wgpu::Sampler
@@ -83,7 +86,7 @@ impl Texture {
         let texture_rgba = match rgba.len() {
             4 => { 
                 let mut rgba_slice = [0u8; 4];
-                rgba_slice.copy_from_slice(&rgba[0..3]);
+                rgba_slice.copy_from_slice(&rgba[0..4]);
                 let pixel = Rgba::<u8>(rgba_slice);
                 ImageBuffer::from_pixel(width, height, pixel)
             }
@@ -159,6 +162,9 @@ impl Texture {
         });
 
         Self {
+            width: dimensions.0,
+            height: dimensions.1,
+
             texture,
             texture_view,
             sampler,
