@@ -40,7 +40,7 @@ impl App {
 
         let mut renderer = Renderer::new();
         renderer.add_pass::<TextPass>();
-        renderer.add_pass::<SpritePass>();
+        //renderer.add_pass::<SpritePass>();
         renderer.init(&mut world).await;
 
         let mut ui = UI::new(&mut world);
