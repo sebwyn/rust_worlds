@@ -1,12 +1,14 @@
-mod render_context;
-pub use render_context::RenderContext;
+mod render_api;
+use render_api::{RenderContext, Surface};
 
 mod renderer;
 pub use renderer::Renderer;
-pub use renderer::RenderPass;
 
-mod subpass;
-pub use subpass::Subpass;
+mod attachment;
+pub use attachment::Attachment;
+
+mod render_pass;
+pub use render_pass::RenderPass;
 
 mod uniform;
 pub use uniform::Uniform;

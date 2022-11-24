@@ -1,20 +1,36 @@
 use super::RenderContext;
 
-pub struct Subpass {
-    pub texture: wgpu::TextureView,
-    pub encoder: Option<wgpu::CommandEncoder>
+pub trait UserPass {
+    //might want a stage here, instead of a pass
+    fn clear_color(&self) -> [f32; 4];
+    fn attachments(&self) -> Vec<Attachment>;
+
+    fn render(&self, encoder: &wgpu::CommandEncoder);  
 }
 
-impl Subpass {
-    pub fn start(texture: wgpu::TextureView, render_context: &RenderContext, load_op: wgpu::LoadOp<wgpu::Color>) -> Self {
-        let mut encoder =
-            render_context
-                .device
-                .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                    label: Some("Render Encoder"),
-                });
+pub struct RenderPass {
+    pub texture: Vec<wgpu::TextureView>, //attachments
+    clear_color: wgpu::Color,
 
-        // Clear frame
+    device: &wgpu::Device, 
+}
+
+impl RenderPass {
+    pub fn new(device: &wgpu::Device, clear_color: &[f32; 4], ) -> Self {
+        Self {
+            texture: Vec::new(),
+            clear_color: clear_color.into(),  
+            device,
+        }
+    }
+
+    pub fn start(&self) {
+        let mut encoder = 
+            self.device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
         {
             encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Clear Subpass"),

@@ -16,15 +16,14 @@ pub struct Texture {
 
 pub struct TextureBindLayout {
     bind_group_layout: wgpu::BindGroupLayout,
-
     texture_binding: u32,
     sampler_binding: u32
 }
 
 impl TextureBindLayout {
-    pub fn new(texture_binding: u32, sampler_binding: u32, render_context: &RenderContext) -> Self {
+    pub fn new(texture_binding: u32, sampler_binding: u32, device: &wgpu::Device) -> Self {
         let bind_group_layout =
-            render_context.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
                     wgpu::BindGroupLayoutEntry {
                         binding: texture_binding,
@@ -50,7 +49,6 @@ impl TextureBindLayout {
         
         Self {
             bind_group_layout,
-
             texture_binding,
             sampler_binding,
         }
@@ -60,8 +58,8 @@ impl TextureBindLayout {
         &self.bind_group_layout
     }
 
-    pub fn create_bind_group(&self, texture: &Texture, render_context: &RenderContext) -> wgpu::BindGroup {
-        let bind_group = render_context.device.create_bind_group(&wgpu::BindGroupDescriptor {
+    pub fn create_bind_group(&self, texture: &Texture, device: &wgpu::Device) -> wgpu::BindGroup {
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &self.bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -73,7 +71,7 @@ impl TextureBindLayout {
                     resource: wgpu::BindingResource::Sampler(&texture.sampler),
                 },
             ],
-            label: Some("diffuse_bind_group"),
+            label: Some("some_bing_group"),
         });
 
         bind_group
@@ -82,11 +80,11 @@ impl TextureBindLayout {
 
 
 impl Texture {
-    pub fn new<T>(width: u32, height: u32, rgba: Vec<u8>, render_context: &RenderContext) -> Self {
-        let texture_rgba = match rgba.len() {
+    pub fn new<T>(width: u32, height: u32, pixel: Vec<u8>, render_context: &RenderContext) -> Self {
+        let texture_rgba = match pixel.len() {
             4 => { 
                 let mut rgba_slice = [0u8; 4];
-                rgba_slice.copy_from_slice(&rgba[0..4]);
+                rgba_slice.copy_from_slice(&pixel[0..4]);
                 let pixel = Rgba::<u8>(rgba_slice);
                 ImageBuffer::from_pixel(width, height, pixel)
             }

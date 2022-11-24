@@ -1,17 +1,12 @@
-use bevy_ecs::prelude::*;
-use winit::{window::{Window, WindowBuilder}, event_loop::EventLoop};
+use winit::event_loop::EventLoop;
 
-pub struct WindowSystem {
-    window: Window
+pub struct Window {
+    window: winit::window::Window
 }
 
-impl WindowSystem {
-    pub fn register_system<T>(world: &mut World, title: &str, event_loop: &EventLoop<T>) {
-        world.insert_resource(WindowSystem::new(title, event_loop));
-    }
-
+impl Window {
     fn new<T>(title: &str, event_loop: &EventLoop<T>) -> Self {
-        let window: Window = WindowBuilder::new()
+        let window: Window = winit::window::WindowBuilder::new()
             .with_title(title)
             .build(event_loop)
             .unwrap();
@@ -21,7 +16,12 @@ impl WindowSystem {
         }
     }
 
-    pub fn window(&self) -> &Window {
+    pub fn size(&self) -> (u32, u32) {
+        let size = self.window.inner_size();
+        (size.width, size.height)
+    }
+
+    pub fn winit_window(&self) -> &Window {
         &self.window
     }
 }

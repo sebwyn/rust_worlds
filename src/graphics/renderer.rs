@@ -1,89 +1,44 @@
 use bevy_ecs::prelude::*;
 
-use crate::core::WindowSystem;
+use crate::core::Window;
+use super::{render_api, RenderContext, Surface};
 
-use super::{RenderContext, Subpass};
+//the renderer can only live as long as the window lives
+//this system may change
 
-pub trait RenderPass {
-    fn get_name() -> &'static str;
-    fn get_init_system() -> Box<dyn System<In = (), Out = ()>>;
-    fn get_render_system() -> Box<dyn System<In = (), Out = ()>>;
+//a renderer is a container for render passes
+pub struct Renderer<'a> {
+    surface: Surface,
+    render_context: RenderContext,
+
+    window: &'a Window,
 }
 
-pub struct RenderPassContainer {
-    _name: &'static str,
-    render_system: fn() -> Box<dyn System<In = (), Out = ()>>,
-    init_system: fn() -> Box<dyn System<In = (), Out = ()>>,
-}
-
-pub struct Renderer {
-    passes: Vec<RenderPassContainer>,
-    render_schedule: Schedule,
-}
-
-impl Renderer {
-    pub fn new() -> Self {
+//the public interface for rendering (it is the rendering api)
+impl<'a> Renderer<'a> {
+    pub fn new(window: &Window) -> Self {
+        let (surface, render_context) = pollster::block_on(render_api::init_wgpu(window));
         Self {
-            passes: Vec::new(),
-            render_schedule: Schedule::default(),
+            surface,
+            render_context,
+            window
         }
     }
 
-    pub async fn init(&mut self, world: &mut World) {
-        //window is a dependency of renderer
-        let window_system = world.get_resource::<WindowSystem>().expect("WindowSystem dependency of renderer is not met");
+    //weird ass result enabling early return from match
+    pub fn render(&mut self) -> Result<(), ()> {
+        let surface_texture = match self.surface.get_surface_texture() {
+            Ok(st) => Ok(st),
+            Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                //reconfigure our surface                
+                self.surface.resize(self.window.size());
+                return Err(())
+            }
+            _ => panic!("Timed out or don't have enough memory for a surface!") 
+        }?;
 
-        world.insert_resource(RenderContext::new(window_system.window()).await);
+       //now we have a texture we can render to our swapchain!!!  
 
-        let mut init = SystemStage::parallel();
-        for pass in self.passes.iter() {
-            init.add_system((pass.init_system)());
-        }
-        init.run(world);
-
-        //we'll have to reconstruct this render schedule everytime we get a new stage
-
-        //from an optimization standpoint, probably want to chain these systems
-        let mut first_pass = SystemStage::parallel();
-        for pass in self.passes.iter() {
-            first_pass
-                .add_system((pass.render_system)());
-        }
-
-        self.render_schedule.add_stage("Render", first_pass);
-        self.render_schedule
-            .add_stage("End pass", SystemStage::single(Self::finish_render_pass));
-    }
-
-    pub fn render(&mut self, world: &mut World) {
-
-        let render_context = world.get_resource::<RenderContext>().expect("There should be a render context here");
-        let surface_texture = render_context.get_surface_texture();
-
-        //start our renderpass with the data that we need
-        let texture_view = surface_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
-        world.insert_resource(Subpass::start(texture_view, render_context, wgpu::LoadOp::Clear(wgpu::Color { r: 0.1, g: 0.2, b: 0.1, a: 1.0}) ));
-
-        //begin our pass here
-        self.render_schedule.run(world);
-    }
-
-    pub fn add_pass<T>(&mut self)
-    where
-        T: RenderPass,
-    {
-        self.passes.push(RenderPassContainer {
-            _name: T::get_name(),
-            init_system: T::get_init_system,
-            render_system: T::get_render_system,
-        });
-    }
-}
-
-impl Renderer {
-    fn finish_render_pass(mut subpass: ResMut<Subpass>, render_context: Res<RenderContext>) {
-        render_context
-            .queue
-            .submit(std::iter::once(subpass.finish()));
+       Ok(()) 
     }
 }
