@@ -1,5 +1,5 @@
 use super::reflector::{reflect_shader, ReflectedShader};
-use super::{UniformGroup, TextureGroup};
+use super::{UniformGroup, TextureGroup, descriptors::GroupDescriptor};
 
 use crate::graphics::RenderContext;
 use crate::graphics::Texture;
@@ -27,17 +27,22 @@ pub struct TextureBinding {
     group: u32,
 }
 
-//potentially kind of slow, but this will represent a shader on the cpu side
+
+pub enum Group {
+    Texture(TextureGroup),
+    Uniform(UniformGroup)
+}
+
+//because the number of uniforms is always relatively low, use vector instead of hash map
 pub struct Shader {
     module: wgpu::ShaderModule,
     vs_entry_point: String,
     fs_entry_point: String,
 
     uniform_bindings: HashMap<String, UniformBinding>,
-    uniforms: Vec<UniformGroup>,
-
     texture_bindings: HashMap<String, TextureBinding>,
-    textures: Vec<TextureGroup>,
+
+    groups: Vec<Group>,
 
     context: Rc<RenderContext>,
 }
@@ -48,17 +53,25 @@ impl Shader {
     pub fn fs_entry_point(&self) -> &str { &self.fs_entry_point }
 
     pub fn layouts(&self) -> Vec<&wgpu::BindGroupLayout> {
-        self.uniforms.iter().map(|group| &group.layout).chain(self.textures.iter().map(|group| &group.layout)).collect()
+        self.groups.iter()
+            .map(|group| {
+                match group {
+                    Group::Texture(texture_group) => &texture_group.layout,
+                    Group::Uniform(uniform_group) => &uniform_group.layout,
+                }
+            })
+            .collect()
     }
 
     pub fn bind_uniforms<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-        for (index, group) in self.uniforms.iter().enumerate() {
-            render_pass.set_bind_group(index as u32, &group.bind_group, &[]);
-        }
+        for (index, group) in self.groups.iter().enumerate() {
+            let bind_group = match group {
+                Group::Texture(texture_group) => texture_group.bind_group.as_ref().expect("Uh oh texture not set!"), 
+                Group::Uniform(uniform_group) => &uniform_group.bind_group,
+            };
 
-        /*for (index, group) in self.uniforms.iter().enumerate() {
-            render_pass.set_bind_group(index as u32, &group.bind_group, &[]);
-        }*/
+            render_pass.set_bind_group(index as u32, bind_group, &[]);
+        }
     }
 }
 
@@ -85,42 +98,38 @@ impl Shader {
         let ReflectedShader { 
             vs_entry_point, 
             fs_entry_point, 
-            mut texture_group_descriptors, 
-            mut uniform_group_descriptors 
+            group_descriptors, 
         } = reflect_shader(&shader_source);
-
-        uniform_group_descriptors.sort_by_key(|group| group.index);
-
-        let mut uniform_bindings = HashMap::new();
-        let mut uniforms = Vec::new();
-
-        uniform_group_descriptors.sort_by_key(|group| group.index);
-        for group in uniform_group_descriptors.into_iter() {
-            //add this groups uniforms to our uniforms
-            for uniform in group.uniforms.iter() {
-                uniform_bindings.insert(uniform.name.clone(), UniformBinding { 
-                    group: group.index, 
-                    binding: uniform.binding, 
-                    size: uniform.size.unwrap()
-                });
-            }
-            
-            uniforms.push(UniformGroup::new(context.device(), shader_name, group));
-        }
 
 
         let mut texture_bindings = HashMap::new();
-        let mut textures = Vec::new();
+        let mut uniform_bindings = HashMap::new();
+        let mut groups = Vec::new();
 
-        texture_group_descriptors.sort_by_key(|group| group.index);
-        for group in texture_group_descriptors.into_iter() {
-            let index = group.index;
+        for group in group_descriptors.into_iter() {
+            match group {
+                GroupDescriptor::Uniform(uniform_group) => {
+                    //add this groups uniforms to our uniforms
+                    for uniform in uniform_group.uniforms.iter() {
+                        uniform_bindings.insert(uniform.name.clone(), UniformBinding { 
+                            group: uniform_group.index, 
+                            binding: uniform.binding, 
+                            size: uniform.size.unwrap()
+                        });
+                    }
+                    groups.push(Group::Uniform(UniformGroup::new(context.device(), shader_name, uniform_group)));
+                },
+                GroupDescriptor::Texture(texture_group) => {
+                    let index = texture_group.index;
+                    let new_group = TextureGroup::new(context.device(), texture_group);
+                    texture_bindings.insert(String::from(new_group.name()), TextureBinding { group: index });
+                    
+                    groups.push(Group::Texture(new_group));
 
-            textures.push(TextureGroup::new(context.device(), group));
-            let tex = textures.last().unwrap();
-
-            texture_bindings.insert(String::from(tex.name()), TextureBinding { group: index });
+                },
+            }
         }
+
 
         Self {
             vs_entry_point,
@@ -128,10 +137,8 @@ impl Shader {
             module,
 
             uniform_bindings,
-            uniforms,
-            
             texture_bindings,
-            textures,
+            groups,
 
             context,
         }
@@ -146,16 +153,19 @@ impl Shader {
     where
         T: bytemuck::Pod
     {
-        let bind_group = self.uniforms.get(binding.group as usize).ok_or(())?;
+        let bind_group = self.groups.get(binding.group as usize).ok_or(())?;
+        if let Group::Uniform(uniform_group) = bind_group {
+            assert!(size_of::<T>() == binding.size as usize, 
+                "Setting a uniform with a value not of the same size!"
+            );
 
-        assert!(size_of::<T>() == binding.size as usize, 
-            "Setting a uniform with a value not of the same size!"
-        );
+            let uniform_buffer = uniform_group.buffers.get(binding.binding as usize).ok_or(())?;
+            self.context.queue().write_buffer(uniform_buffer, 0, bytemuck::cast_slice(&[value]));
 
-        let uniform_buffer = bind_group.buffers.get(binding.binding as usize).ok_or(())?;
-        self.context.queue().write_buffer(uniform_buffer, 0, bytemuck::cast_slice(&[value]));
-
-        Ok(())
+            Ok(())
+        } else {
+            Err(())
+        }
     }
 
     pub fn get_texture_binding(&self, name: &str) -> Option<TextureBinding> {
@@ -164,9 +174,13 @@ impl Shader {
 
     pub fn update_texture(&mut self, binding: &TextureBinding, texture: &Texture) -> Result<(), ()> 
     {
-        let texture_group = self.textures.get_mut(binding.group as usize).ok_or(())?;
-        texture_group.update_texture(texture, self.context.device());
-        Ok(())
+        let texture_group = self.groups.get_mut(binding.group as usize).ok_or(())?;
+        if let Group::Texture(texture_group) = texture_group {
+            texture_group.update_texture(texture, self.context.device());
+            Ok(())
+        } else {
+            Err(())
+        }
     }
 }
 

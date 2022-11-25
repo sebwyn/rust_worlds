@@ -1,8 +1,8 @@
 use std::rc::Rc;
 use std::cell::{Ref, RefCell};
 
-use super::{Shader, ShaderDescriptor};
 use super::{RenderPipeline, RenderPipelineDescriptor, Vertex};
+use super::Texture;
 
 use crate::core::Window; 
 
@@ -94,8 +94,8 @@ impl RenderApi {
         } 
     }
 
-    pub fn create_shader(&self, descriptor: &ShaderDescriptor) -> Shader {
-        Shader::new(descriptor, self.render_context.clone())
+    pub fn load_texture(&self, file: &str) -> Texture {
+        Texture::load(file, self.context())
     }
 
     pub fn create_render_pipeline(&self, descriptor: RenderPipelineDescriptor) -> RenderPipeline {

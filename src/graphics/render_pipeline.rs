@@ -1,4 +1,5 @@
-use super::Shader;
+use super::Texture;
+use super::{Shader, ShaderDescriptor, UniformBinding, TextureBinding};
 use super::{Attachment, AttachmentAccess, RenderApi, RenderContext};
 
 use std::rc::Rc;
@@ -33,9 +34,9 @@ pub trait Vertex : bytemuck::Pod {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
 }
 
-pub struct RenderPipelineDescriptor {
+pub struct RenderPipelineDescriptor<'a> {
     pub attachment_accesses: Vec<AttachmentAccess>,
-    pub shader: Rc<Shader>,
+    pub shader: &'a ShaderDescriptor<'a>,
     pub primitive: RenderPrimitive
 }
 
@@ -45,7 +46,7 @@ pub struct Vertices {
 }
 
 pub struct RenderPipeline {
-    shader: Rc<Shader>,
+    shader: Shader,
 
     attachment_accesses: Vec<AttachmentAccess>,
     _layout: wgpu::PipelineLayout,
@@ -70,6 +71,26 @@ impl RenderPipeline {
         let mut instance = Self::create(descriptor, &[T::desc()], api);
         instance.has_vertex = true;
         instance
+    }
+
+    pub fn get_uniform_binding(&self, uniform: &str) -> Option<UniformBinding> { 
+        self.shader.get_uniform_binding(uniform)
+    }
+
+    pub fn set_uniform<T>(&self, binding: &UniformBinding, value: T) -> Result<(), ()>
+    where
+        T: bytemuck::Pod
+    {
+        self.shader.set_uniform(binding, value)
+    }
+
+    pub fn get_texture_binding(&self, name: &str) -> Option<TextureBinding> {
+        self.shader.get_texture_binding(name)
+    }
+
+    pub fn update_texture(&mut self, binding: &TextureBinding, texture: &Texture) -> Result<(), ()> 
+    {
+        self.shader.update_texture(binding, texture)
     }
 
     pub fn set_vertices<T>(&mut self, new_vertices: &[T]) 
@@ -165,6 +186,8 @@ impl RenderPipeline {
             });
 
             render_pass.set_pipeline(&self.pipeline);
+
+            //this line is controversial
             self.shader.bind_uniforms(&mut render_pass);
 
             if let Some((vertex_count, vertex_buffer, indices)) = verts {
@@ -188,7 +211,7 @@ impl RenderPipeline {
 
     pub fn create(descriptor: RenderPipelineDescriptor, vertex_descriptions: &[wgpu::VertexBufferLayout], api: &RenderApi) -> Self
     {
-        let shader = descriptor.shader; 
+        let shader = Shader::new(descriptor.shader, api.render_context.clone());
 
         let uniform_layouts = shader.layouts();
 

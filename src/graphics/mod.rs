@@ -3,7 +3,8 @@ use render_api::RenderContext;
 pub use render_api::RenderApi;
 
 mod shader;
-pub use shader::{Shader, ShaderDescriptor};
+use shader::Shader;
+pub use shader::{ShaderDescriptor, UniformBinding, TextureBinding};
 
 mod attachment;
 pub use attachment::{Attachment, AttachmentAccess};
@@ -13,9 +14,6 @@ pub use render_pipeline::{RenderPipeline, RenderPipelineDescriptor, RenderPrimit
 
 mod renderer;
 pub use renderer::Renderer;
-
-mod render_pass;
-pub use render_pass::RenderPass;
 
 mod texture;
 pub use texture::Texture;

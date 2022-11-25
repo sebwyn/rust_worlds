@@ -4,7 +4,7 @@ use super::RenderContext;
 
 use std::fs::File;
 use std::io::Read;
- 
+
 pub struct Texture {
     pub width: u32,
     pub height: u32,

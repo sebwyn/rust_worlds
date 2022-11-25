@@ -49,3 +49,9 @@ pub struct TextureGroupDescriptor {
     pub image: Option<UniformDescriptor>,
     pub usages: Usages,
 }
+
+#[derive(Clone, Debug)]
+pub enum GroupDescriptor {
+    Texture(TextureGroupDescriptor),
+    Uniform(UniformGroupDescriptor)
+}

@@ -5,9 +5,9 @@ pub struct TextureGroup {
     name: String,
     texture_binding: u32,
     sampler_binding: u32,
-    pub layout: wgpu::BindGroupLayout,
 
-    bind_group: Option<wgpu::BindGroup>
+    pub layout: wgpu::BindGroupLayout,
+    pub bind_group: Option<wgpu::BindGroup>
 }
 
 impl TextureGroup {
@@ -19,7 +19,7 @@ impl TextureGroup {
 impl TextureGroup {
     pub fn new(device: &wgpu::Device, descriptor: TextureGroupDescriptor) -> Self {
         let image_uniform = descriptor.image.as_ref().expect("No image found for texture group");
-        let sampler_uniform = descriptor.image.as_ref().expect("No sampler found for texture group");
+        let sampler_uniform = descriptor.sampler.as_ref().expect("No sampler found for texture group");
 
         assert!(matches!(image_uniform.usages, Usages::FRAGMENT), "Image uniform is not exclusive to fragment shader!");
         assert!(matches!(sampler_uniform.usages, Usages::FRAGMENT), "Sampler uniform is not exclusive to fragment shader!");

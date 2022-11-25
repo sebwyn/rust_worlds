@@ -1,5 +1,5 @@
 mod shader_core;
-pub use shader_core::{Shader, ShaderDescriptor};
+pub use shader_core::{Shader, ShaderDescriptor, UniformBinding, TextureBinding};
 
 mod descriptors;
 

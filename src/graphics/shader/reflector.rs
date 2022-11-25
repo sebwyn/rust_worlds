@@ -1,4 +1,4 @@
-use super::descriptors::{UniformDescriptor, UniformGroupDescriptor, TextureGroupDescriptor, Usages};
+use super::descriptors::{UniformDescriptor, UniformGroupDescriptor, TextureGroupDescriptor, GroupDescriptor, Usages};
 
 use std::collections::HashMap;
 use std::ptr;
@@ -7,8 +7,7 @@ use std::ptr;
 pub struct ReflectedShader {
     pub vs_entry_point: String,
     pub fs_entry_point: String,
-    pub uniform_group_descriptors: Vec<UniformGroupDescriptor>,
-    pub texture_group_descriptors: Vec<TextureGroupDescriptor>, 
+    pub group_descriptors: Vec<GroupDescriptor>,
 }
 
 pub fn reflect_shader(shader_source: &str) -> ReflectedShader { 
@@ -29,20 +28,29 @@ struct Reflector {
 
     vs_entry_point: String,
     fs_entry_point: String,
-
-    texture_group_descriptors: Vec<TextureGroupDescriptor>,
-    uniform_group_descriptors: Vec<UniformGroupDescriptor>,
+    
+    groups: Vec<(u32, GroupDescriptor)>,
 
     uniform_descriptors: HashMap<naga::Handle<naga::GlobalVariable>, *mut UniformDescriptor>,
 }
 
 impl Reflector {
-    fn reflected(self) -> ReflectedShader {
+    //construct our ordered groups, and validate that there are no gaps
+    fn reflected(mut self) -> ReflectedShader {
+        self.groups.sort_by_key(|(index, _)| *index);
+        let group_descriptors = self.groups.into_iter().enumerate()
+            .map(|(i, (index, group))| {
+                if i as u32 != index {
+                    panic!("missing bind group {}", i)
+                }
+                group
+            })
+            .collect();
+
         ReflectedShader { 
             vs_entry_point: self.vs_entry_point,
             fs_entry_point: self.fs_entry_point,
-            texture_group_descriptors: self.texture_group_descriptors, 
-            uniform_group_descriptors: self.uniform_group_descriptors,
+            group_descriptors 
         }
     }
 
@@ -93,10 +101,8 @@ impl Reflector {
             };
 
             //check if there is already a texture binding for this
-            let uniform_group: Option<&mut UniformGroupDescriptor> = 
-                self.uniform_group_descriptors.iter_mut().find(|group| group.index == binding.group);
-            let texture_group: Option<&mut TextureGroupDescriptor> = 
-                self.texture_group_descriptors.iter_mut().find(|group| group.index == binding.group);
+            let group: Option<&mut GroupDescriptor> = 
+                self.groups.iter_mut().find(|(index, _)| binding.group == *index).map(|(_, group)| group);
             
             let is_texture_uniform =  matches!(kind.inner, 
                 naga::TypeInner::Image { .. } | 
@@ -104,50 +110,73 @@ impl Reflector {
             );
 
             if is_texture_uniform {
-                assert!(uniform_group.is_none(), "Assigning texture to uniform group");
-                
-                let texture_group = 
-                    if let Some(texture_group) = texture_group {
-                        texture_group
+                //get or insert texture descriptor or panic if its not a texture descriptor
+                let group: &mut GroupDescriptor = 
+                    if matches!(group, Some(GroupDescriptor::Texture(..))) {
+                        group.unwrap()
+                    } else if group.is_none() {
+                        self.groups.push((
+                            binding.group,
+                            GroupDescriptor::Texture(
+                                TextureGroupDescriptor { 
+                                    index: binding.group, 
+                                    ..Default::default() 
+                                }
+                            )
+                        ));
+                        &mut self.groups.last_mut().unwrap().1
                     } else {
-                        self.texture_group_descriptors.push(
-                            TextureGroupDescriptor { 
-                                index: binding.group, 
-                                ..Default::default() 
-                            }
-                        );
-                        self.texture_group_descriptors.last_mut().unwrap()
+                        panic!("Assigning texture to uniform group")
                     };
 
-                if let naga::TypeInner::Image { dim, .. } = kind.inner {
-                    texture_group.image = Some(uniform);
-                    texture_group.dimensions = dim as u32;
-                    self.uniform_descriptors.insert(variable.0, texture_group.image.as_mut().unwrap());
-                } else if let naga::TypeInner::Sampler { .. } = kind.inner {
-                    texture_group.sampler = Some(uniform);
-                    self.uniform_descriptors.insert(variable.0, texture_group.sampler.as_mut().unwrap());
+                if let GroupDescriptor::Texture(texture_group) = group {
+                    if let naga::TypeInner::Image { dim, .. } = kind.inner {
+                        texture_group.image = Some(uniform);
+                        match dim {
+                            naga::ImageDimension::D1 => texture_group.dimensions = 1,
+                            naga::ImageDimension::D2 => texture_group.dimensions = 2,
+                            naga::ImageDimension::D3 => texture_group.dimensions = 3,
+                            _ => panic!("Cube maps are not supported")
+                            //naga::ImageDimension::Cube => texture_group.dimensions = 1,
+                        }
+                        self.uniform_descriptors.insert(variable.0, texture_group.image.as_mut().unwrap());
+                    } else if let naga::TypeInner::Sampler { .. } = kind.inner {
+                        texture_group.sampler = Some(uniform);
+                        self.uniform_descriptors.insert(variable.0, texture_group.sampler.as_mut().unwrap());
+                    }
+                } else {
+                    panic!("WILD!!!!!!");
                 }
             } else {
-                assert!(texture_group.is_none(), "Assigning uniform to texture group");
-
-                let uniform_group = 
-                    if let Some(uniform_group) = uniform_group {
-                        uniform_group
+                //get or insert Uniform descriptor or panic if its not a uniform descriptor
+                let group: &mut GroupDescriptor = 
+                    if matches!(group, Some(GroupDescriptor::Uniform(..))) {
+                        group.unwrap()
+                    } else if group.is_none() {
+                        self.groups.push((
+                            binding.group,
+                            GroupDescriptor::Uniform(
+                                UniformGroupDescriptor {
+                                    index: binding.group,
+                                    uniforms: Vec::new(),
+                                }
+                            )
+                        ));
+                        &mut self.groups.last_mut().unwrap().1
                     } else {
-                        self.uniform_group_descriptors.push(
-                            UniformGroupDescriptor { 
-                                index: binding.group, 
-                                ..Default::default() 
-                            },
-                        );
-                        self.uniform_group_descriptors.last_mut().unwrap()
+                        panic!("Assigning texture to uniform group")
                     };
 
-                if uniform.size.is_none() {
-                    panic!("Worlds WGSL: Don't know what to do with variable: {}", uniform.name);
+
+                if let GroupDescriptor::Uniform(uniform_group) = group {
+                    if uniform.size.is_none() {
+                        panic!("Worlds WGSL: Don't know what to do with variable: {}", uniform.name);
+                    }
+                    uniform_group.uniforms.push(uniform);
+                    self.uniform_descriptors.insert(variable.0, uniform_group.uniforms.last_mut().unwrap());
+                } else {
+                    panic!("WILD!!!!!!");
                 }
-                uniform_group.uniforms.push(uniform);
-                self.uniform_descriptors.insert(variable.0, uniform_group.uniforms.last_mut().unwrap());
             }
         }
     }
