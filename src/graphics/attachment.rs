@@ -1,7 +1,14 @@
+use super::Texture;
+
+use std::rc::Rc;
+
 //an attachment is a render target
 pub enum Attachment {
     Swapchain,
-    Image((wgpu::TextureFormat, u32, u32)),
-    Image3d((wgpu::TextureFormat, u32, u32, u32))
-    //depth?
+    Texture(Rc<Texture>),
+}
+
+pub struct AttachmentAccess {
+    pub clear_color: Option<([f64; 4])>,
+    pub attachment: Attachment,
 }

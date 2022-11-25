@@ -5,8 +5,8 @@ pub struct Window {
 }
 
 impl Window {
-    fn new<T>(title: &str, event_loop: &EventLoop<T>) -> Self {
-        let window: Window = winit::window::WindowBuilder::new()
+    pub fn new<T>(title: &str, event_loop: &EventLoop<T>) -> Self {
+        let window = winit::window::WindowBuilder::new()
             .with_title(title)
             .build(event_loop)
             .unwrap();
@@ -21,7 +21,7 @@ impl Window {
         (size.width, size.height)
     }
 
-    pub fn winit_window(&self) -> &Window {
+    pub fn winit_window(&self) -> &winit::window::Window {
         &self.window
     }
 }

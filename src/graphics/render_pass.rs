@@ -1,4 +1,4 @@
-use super::RenderContext;
+use super::Attachment;
 
 pub trait UserPass {
     //might want a stage here, instead of a pass
@@ -8,49 +8,32 @@ pub trait UserPass {
     fn render(&self, encoder: &wgpu::CommandEncoder);  
 }
 
-pub struct RenderPass {
+pub struct RenderPass<'a> {
     pub texture: Vec<wgpu::TextureView>, //attachments
     clear_color: wgpu::Color,
 
-    device: &wgpu::Device, 
+    device: &'a wgpu::Device, 
 }
 
-impl RenderPass {
-    pub fn new(device: &wgpu::Device, clear_color: &[f32; 4], ) -> Self {
+impl<'a> RenderPass<'a> {
+    pub fn new(device: &'a wgpu::Device, clear_color: [f64; 4]) -> Self {
         Self {
             texture: Vec::new(),
-            clear_color: clear_color.into(),  
+            clear_color: wgpu::Color { 
+                r: clear_color[0], 
+                g: clear_color[1], 
+                b: clear_color[2], 
+                a: clear_color[3] 
+            },  
             device,
         }
     }
 
-    pub fn start(&self) {
-        let mut encoder = 
-            self.device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
-
-        {
-            encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("Clear Subpass"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &texture,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: load_op,
-                        store: true,
-                    },
-                })],
-                depth_stencil_attachment: None,
-            });
-        }
-
-        Subpass { texture, encoder: Some(encoder)}
-    }
-
-    pub fn finish(&mut self) -> wgpu::CommandBuffer {
-        //take ownership of our encoder here, and finish it
-        std::mem::replace(&mut self.encoder, None).expect("Trying to finish an invalid subpass").finish()
+    pub fn start<'b>(&self, encoder: &'b mut wgpu::CommandEncoder) -> wgpu::RenderPass<'b> {
+        encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("Clear Subpass"),
+            color_attachments: &[],
+            depth_stencil_attachment: None,
+        })
     }
 }
