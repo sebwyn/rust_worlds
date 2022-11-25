@@ -52,10 +52,10 @@ impl App {
                         input:
                             KeyboardInput {
                                 state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode,
+                                virtual_keycode: Some(VirtualKeyCode::Escape),
                                 ..
                             },
-                        ..
+                            ..
                     } => *control_flow = ControlFlow::Exit,
                     //handle resizes
                     WindowEvent::Resized(_new_size) => {},
