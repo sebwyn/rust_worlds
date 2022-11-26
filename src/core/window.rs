@@ -1,17 +1,19 @@
 use winit::event_loop::EventLoop;
+use winit::dpi::PhysicalSize;
 
 pub struct Window {
-    window: winit::window::Window
+    window: winit::window::Window,
 }
 
 impl Window {
-    pub fn new<T>(title: &str, event_loop: &EventLoop<T>) -> Self {
+    pub fn new<T>(event_loop: &EventLoop<T>, title: &str, width: u32, height: u32) -> Self {
         let window = winit::window::WindowBuilder::new()
             .with_title(title)
-            .build(event_loop)
+            .with_inner_size(PhysicalSize { width, height })
+            .build(&event_loop)
             .unwrap();
         
-        Self {
+        Window {
             window
         }
     }

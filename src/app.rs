@@ -24,8 +24,7 @@ impl App {
     fn new(event_loop: &winit::event_loop::EventLoop<()>) -> Self {
         env_logger::init();
 
-        let window = Window::new("Worlds App", event_loop);
-
+        let window = Window::new(event_loop, "Worlds App", 800, 600);
         let api = pollster::block_on(RenderApi::new(&window));
         
         let mut pipeline = api.create_render_pipeline(RenderPipelineDescriptor { 
@@ -41,11 +40,11 @@ impl App {
             primitive: RenderPrimitive::Triangles 
         });
 
-        let tex_offset_binding = pipeline.get_uniform_binding("tex_offset").expect("Can't get tex_offset uniform");
-
         let texture = api.load_texture("tex.jpeg");
         let texture_binding = pipeline.get_texture_binding("diffuse").expect("Can't get texture uniform");
         pipeline.update_texture(&texture_binding, &texture).expect("failed to set texture");
+
+        let tex_offset_binding = pipeline.get_uniform_binding("tex_offset").expect("Can't get tex_offset uniform");
 
         let start_time = Instant::now();
 
@@ -62,7 +61,10 @@ impl App {
         //update the tex offset to move in a circle
         let elapsed = (self.start_time.elapsed().as_millis() % 5000u128) as f32 / 2500f32 * 2f32 * std::f32::consts::PI;
 
-        self.pipeline.set_uniform(&self.tex_offset_binding, Vec2 { x: f32::cos(elapsed) / 10f32, y: f32::sin(elapsed) / 10f32}).expect("Could not set uniform");
+        self.pipeline.set_uniform(&self.tex_offset_binding, Vec2 { 
+            x: (f32::cos(elapsed) / 10f32), 
+            y: (f32::sin(elapsed) / 10f32)
+        }).expect("Could not set uniform");
 
         let current_texture = self.api.surface().get_current_texture().unwrap();
         let current_texture_view = current_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
@@ -102,7 +104,6 @@ impl App {
                 },
                 Event::RedrawRequested(window_id) if window_id == my_window_id => {
                     app.render();
-
                 }
                 Event::MainEventsCleared => {
                     app.window.winit_window().request_redraw();
