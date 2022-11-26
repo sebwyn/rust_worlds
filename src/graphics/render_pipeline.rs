@@ -121,7 +121,7 @@ impl RenderPipeline {
         let new_buffer = self.context.device().create_buffer_init(&wgpu::util::BufferInitDescriptor { 
             label: None, 
             contents: bytemuck::cast_slice(new_indices), 
-            usage: wgpu::BufferUsages::VERTEX
+            usage: wgpu::BufferUsages::INDEX
         });
         let new_index_buffer = Some((new_indices.len() as u32, new_buffer));
 

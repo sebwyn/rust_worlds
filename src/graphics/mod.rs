@@ -1,10 +1,12 @@
 mod render_api;
-use render_api::RenderContext;
-pub use render_api::RenderApi;
+//use render_api::RenderContext;
+pub use render_api::{RenderApi, Surface, RenderContext};
 
 mod shader;
 use shader::Shader;
 pub use shader::{ShaderDescriptor, UniformBinding, TextureBinding};
+
+pub mod wgsl_types;
 
 mod attachment;
 pub use attachment::{Attachment, AttachmentAccess};

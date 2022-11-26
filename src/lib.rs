@@ -5,4 +5,13 @@ mod core;
 mod graphics;
 mod app;
 
+mod rotating_tri;
+use rotating_tri::RotatingTri;
+
+mod voxels;
+use voxels::Voxels;
+
+mod vertex;
+pub use vertex::Vert;
+
 pub use app::App;

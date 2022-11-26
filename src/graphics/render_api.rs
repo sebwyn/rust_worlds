@@ -82,6 +82,8 @@ impl RenderApi {
         };
         surface.configure(&device, &config);
 
+        println!("Surface format: {:?}", config.format);
+
         Self {
             surface: Rc::new(RefCell::new(Surface {
                 surface,
@@ -92,6 +94,13 @@ impl RenderApi {
                 queue
             })
         } 
+    }
+
+    pub fn create_image_texture<T>(&self, width: u32, height: u32) -> Texture 
+    where
+        T: image::Pixel<Subpixel = u8>
+    {
+        Texture::new::<T>(width, height, self.context())
     }
 
     pub fn load_texture(&self, file: &str) -> Texture {
