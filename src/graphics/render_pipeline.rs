@@ -31,7 +31,7 @@ impl Into<wgpu::PrimitiveTopology> for RenderPrimitive {
 }
 
 pub trait Vertex : bytemuck::Pod {
-    fn desc() -> wgpu::VertexBufferLayout<'static>;
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a>;
 }
 
 pub struct RenderPipelineDescriptor<'a> {
@@ -191,7 +191,7 @@ impl RenderPipeline {
             self.shader.bind_uniforms(&mut render_pass);
 
             if let Some((vertex_count, vertex_buffer, indices)) = verts {
-                render_pass.set_vertex_buffer(*vertex_count, vertex_buffer.slice(..));
+                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
                 if let Some((index_count, index_buffer)) = indices {
                     render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
                     render_pass.draw_indexed(0..*index_count, 0, 0..1);
@@ -199,6 +199,7 @@ impl RenderPipeline {
                     render_pass.draw(0..*vertex_count, 0..1);
                 }
             } else {
+                println!("Drawing with no verts");
                 render_pass.draw(0..3, 0..1);
             }
         }
