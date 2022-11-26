@@ -19,6 +19,10 @@ pub struct Voxels {
 
     image_buffer: Option<image::ImageBuffer<Rgba<u8>, Vec<u8>>>,
 
+    //flat buffer of voxels
+    //world_size: (u32, u32, u32);
+    //let position = 
+
     //need to maintain a context so we can write our textures
     context: Rc<RenderContext>,
 

@@ -1,4 +1,6 @@
 // Vertex shader
+@group(0) @binding(0) var<uniform> tex_offset: vec2<f32>;
+
 struct VertexInput {
     @location(0)  position: vec2<f32>,
     @location(1) tex_coord: vec2<f32>
