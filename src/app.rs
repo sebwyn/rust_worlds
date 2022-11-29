@@ -6,7 +6,7 @@ use crate::graphics::RenderApi;
 use crate::core::Window;
 
 //use crate::RotatingTri;
-use crate::Voxels;
+use crate::CpuVoxels;
 
 
 pub struct App {
@@ -19,7 +19,7 @@ pub struct App {
     last_frame: Instant,
 
     //rotating_tri: RotatingTri,
-    voxels: Voxels,
+    voxels: CpuVoxels,
 }
 
 impl App {
@@ -33,7 +33,7 @@ impl App {
         let api = pollster::block_on(RenderApi::new(&window));
 
         //let rotating_tri = RotatingTri::new(&api);
-        let voxels = Voxels::new(&api);
+        let voxels = CpuVoxels::new(&api);
 
         let last_frame = Instant::now();
 

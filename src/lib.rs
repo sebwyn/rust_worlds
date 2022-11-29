@@ -8,8 +8,8 @@ mod app;
 mod rotating_tri;
 use rotating_tri::RotatingTri;
 
-mod voxels;
-use voxels::Voxels;
+mod cpu_voxels;
+use cpu_voxels::CpuVoxels;
 
 mod vertex;
 pub use vertex::Vert;
