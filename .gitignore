@@ -2,3 +2,4 @@
 imgui.ini
 Cargo.lock
 *.cap
+.vscode

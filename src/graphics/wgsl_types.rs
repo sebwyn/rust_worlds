@@ -38,11 +38,11 @@ impl std::ops::Add for Vec2 {
 pub struct Vec3 { pub x: f32, pub y: f32, pub z: f32 }
 
 impl Vec3 {
-    fn magnitude(&self) -> f32 {
-        f32::sqrt(self.x.powf(2f32) + self.y.powf(2f32) + self.x.powf(2f32))
+    pub fn magnitude(&self) -> f32 {
+        f32::sqrt(self.x.powf(2f32) + self.y.powf(2f32) + self.z.powf(2f32))
     }
 
-    fn normalize(&self) -> Self {
+    pub fn normalize(&self) -> Self {
         let magnitude = self.magnitude();
         Self { x: self.x / magnitude, y: self.y / magnitude, z: self.z / magnitude }
     }
@@ -71,5 +71,13 @@ impl std::ops::Add for Vec3 {
 
     fn add(self, rhs: Self) -> Self::Output {
         Vec3 { x: self.x + rhs.x, y: self.y + rhs.y, z: self.z + rhs.z }
+    }
+}
+
+impl std::ops::Sub for Vec3 {
+    type Output = Vec3;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Vec3 { x: self.x - rhs.x, y: self.y - rhs.y, z: self.z - rhs.z }
     }
 }

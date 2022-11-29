@@ -52,7 +52,7 @@ impl App {
     pub fn render(&mut self) {
         //limit frame rate because this cpu shit is crazy
         let frame_time = self.last_frame.elapsed().as_millis();
-        if frame_time < 500 {
+        if frame_time < 50 {
             return
         } 
         println!("frame time: {}", frame_time as u32);
