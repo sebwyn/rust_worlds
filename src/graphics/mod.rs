@@ -18,7 +18,4 @@ mod renderer;
 pub use renderer::Renderer;
 
 mod texture;
-pub use texture::Texture;
-
-#[cfg(test)]
-mod graphics_tests;
+pub use texture::{Texture, Sampler};

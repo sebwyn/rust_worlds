@@ -58,6 +58,10 @@ pub struct RenderPipeline {
     context: Rc<RenderContext>
 }
 
+impl RenderPipeline {
+    pub fn shader(&mut self) -> &mut Shader { &mut self.shader } 
+}
+
 //temporary
 impl RenderPipeline {
     pub fn new(descriptor: RenderPipelineDescriptor, api: &RenderApi) -> Self {
@@ -71,26 +75,6 @@ impl RenderPipeline {
         let mut instance = Self::create(descriptor, &[T::desc()], api);
         instance.has_vertex = true;
         instance
-    }
-
-    pub fn get_uniform_binding(&self, uniform: &str) -> Option<UniformBinding> { 
-        self.shader.get_uniform_binding(uniform)
-    }
-
-    pub fn set_uniform<T>(&self, binding: &UniformBinding, value: T) -> Result<(), ()>
-    where
-        T: bytemuck::Pod
-    {
-        self.shader.set_uniform(binding, value)
-    }
-
-    pub fn get_texture_binding(&self, name: &str) -> Option<TextureBinding> {
-        self.shader.get_texture_binding(name)
-    }
-
-    pub fn update_texture(&mut self, binding: &TextureBinding, texture: &Texture) -> Result<(), ()> 
-    {
-        self.shader.update_texture(binding, texture)
     }
 
     pub fn set_vertices<T>(&mut self, new_vertices: &[T]) 
@@ -215,6 +199,7 @@ impl RenderPipeline {
         let shader = Shader::new(descriptor.shader, api.render_context.clone());
 
         let uniform_layouts = shader.layouts();
+        println!("Shader layouts: {:?}", uniform_layouts);
 
         let targets: Vec<Option<wgpu::ColorTargetState>> = 
             descriptor.attachment_accesses.iter()

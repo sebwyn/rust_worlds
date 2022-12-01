@@ -1,7 +1,7 @@
 use super::reflector::{reflect_shader, ReflectedShader};
 use super::{UniformGroup, TextureGroup, descriptors::GroupDescriptor};
 
-use crate::graphics::RenderContext;
+use crate::graphics::{RenderContext, Sampler};
 use crate::graphics::Texture;
 
 use std::rc::Rc;
@@ -156,7 +156,7 @@ impl Shader {
         let bind_group = self.groups.get(binding.group as usize).ok_or(())?;
         if let Group::Uniform(uniform_group) = bind_group {
             assert!(size_of::<T>() == binding.size as usize, 
-                "Setting a uniform with a value not of the same size!"
+                "Setting a uniform with a value not of the same size! {}", binding.size
             );
 
             let uniform_buffer = uniform_group.buffers.get(binding.binding as usize).ok_or(())?;
@@ -172,11 +172,11 @@ impl Shader {
         self.texture_bindings.get(name).cloned()
     }
 
-    pub fn update_texture(&mut self, binding: &TextureBinding, texture: &Texture) -> Result<(), ()> 
+    pub fn update_texture(&mut self, binding: &TextureBinding, texture: &Texture, sampler: Option<&Sampler>) -> Result<(), ()> 
     {
         let texture_group = self.groups.get_mut(binding.group as usize).ok_or(())?;
         if let Group::Texture(texture_group) = texture_group {
-            texture_group.update_texture(texture, self.context.device());
+            texture_group.update_texture(texture, sampler, self.context.device());
             Ok(())
         } else {
             Err(())

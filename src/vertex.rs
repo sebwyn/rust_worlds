@@ -1,4 +1,4 @@
-pub use crate::graphics::wgsl_types::Vec2;
+use crate::graphics::wgsl_types::Vec2;
 
 use crate::graphics::Vertex;
 

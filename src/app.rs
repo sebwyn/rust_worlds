@@ -6,12 +6,12 @@ use crate::graphics::RenderApi;
 use crate::core::Window;
 
 //use crate::RotatingTri;
-use crate::CpuVoxels;
+use crate::Voxels;
 
 
 pub struct App {
-    width: u32,
-    height: u32,
+    _width: u32,
+    _height: u32,
 
     window: Window,
     api: RenderApi,
@@ -19,7 +19,7 @@ pub struct App {
     last_frame: Instant,
 
     //rotating_tri: RotatingTri,
-    voxels: CpuVoxels,
+    voxels: Voxels,
 }
 
 impl App {
@@ -33,7 +33,7 @@ impl App {
         let api = pollster::block_on(RenderApi::new(&window));
 
         //let rotating_tri = RotatingTri::new(&api);
-        let voxels = CpuVoxels::new(&api);
+        let voxels = Voxels::new(&api, width, height);
 
         let last_frame = Instant::now();
 
@@ -41,8 +41,8 @@ impl App {
             window,
             api,
 
-            width,
-            height,
+            _width: width,
+            _height: height,
             last_frame,
             //rotating_tri,
             voxels
@@ -52,9 +52,9 @@ impl App {
     pub fn render(&mut self) {
         //limit frame rate because this cpu shit is crazy
         let frame_time = self.last_frame.elapsed().as_millis();
-        if frame_time < 50 {
+        /*if frame_time < 50 {
             return
-        } 
+        }*/ 
         println!("frame time: {}", frame_time as u32);
         self.last_frame = Instant::now();
 
@@ -63,7 +63,7 @@ impl App {
         let current_texture_view = current_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
         //self.rotating_tri.render(&current_texture_view, self.width, self.height);
-        self.voxels.render(&current_texture_view, self.width, self.height);
+        self.voxels.render(&current_texture_view);
 
         current_texture.present();
     }

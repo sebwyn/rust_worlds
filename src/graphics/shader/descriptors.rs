@@ -41,6 +41,7 @@ pub struct UniformGroupDescriptor {
     pub uniforms: Vec<UniformDescriptor>,
 }
 
+//TODO: add code to deal with different sampling types
 #[derive(Default, Clone, Debug)]
 pub struct TextureGroupDescriptor {
     pub index: u32, 

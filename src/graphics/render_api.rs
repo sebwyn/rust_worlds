@@ -100,7 +100,11 @@ impl RenderApi {
     where
         T: image::Pixel<Subpixel = u8>
     {
-        Texture::new::<T>(width, height, self.context())
+        Texture::new_image::<T>(width, height, self.context())
+    }
+
+    pub fn create_texture<T>(&self, width: u32, height: u32, texture_format: wgpu::TextureFormat) -> Texture {
+        Texture::new::<T>(width, height, texture_format, self.context())
     }
 
     pub fn load_texture(&self, file: &str) -> Texture {

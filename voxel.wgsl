@@ -27,6 +27,7 @@ fn voxel_from_pos(position: vec3<i32>) -> bool {
     if(in_range.x && in_range.y && in_range.z){
         //calculate our tex coord from our y, and z, x coords are contained in one pixel that is 32 bit
 
+        //return true;
         //look up the voxel in our texture
         let row = textureLoad(voxel_data, position.yz, 0).r;
 
@@ -38,16 +39,17 @@ fn voxel_from_pos(position: vec3<i32>) -> bool {
 }
 
 @fragment
-fn fs_main(in: VertexInput) -> @location(0) vec4<f32> {
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     //start by transforming out index into a vec2
     //transform position to have an origin at the center
-    let p = (in.position.xy - resolution / 2.0) / 100.0;
+    var p = (in.position.xy - resolution / 2.0) / 100.0;
+    p.y = -1.0 * p.y;
 
     //figure out our ray from the postion and camera position, for now assuming the camera points towards positive z (near is positive)
     //we divide by zoom?? here
     let origin = camera_position;
     let world_ray = normalize(vec3<f32>(p, near));
-    
+
     //should vectorize all these operations, no reason to be this verbose
     let step = vec3<i32>(sign(world_ray));
     let t_delta = 1.0 / world_ray;
@@ -75,7 +77,7 @@ fn fs_main(in: VertexInput) -> @location(0) vec4<f32> {
         t_max_z = world_fract.z;
     };
 
-    let t_max = world_fract * vec3<f32>(t_max_x, t_max_y, t_max_z);
+    var t_max = world_fract * vec3<f32>(t_max_x, t_max_y, t_max_z);
 
     var voxel = vec3<i32>(floor(origin));
 
@@ -83,14 +85,14 @@ fn fs_main(in: VertexInput) -> @location(0) vec4<f32> {
     
     //cap the number of iterations at zero
     for(var i: i32; i < 50; i++) {
-        if abs(t_max_x) < abs(t_max_y) && abs(t_max_x) < abs(t_max_z) {
-            t_max_x= t_max_x + t_delta.x;
+        if abs(t_max.x) < abs(t_max.y) && abs(t_max.x) < abs(t_max.z) {
+            t_max.x = t_max.x + t_delta.x;
             voxel.x += step.x;
-        } else if abs(t_max_y) < abs(t_max_z) {
-            t_max_y= t_max_y + t_delta.y;
+        } else if abs(t_max.y) < abs(t_max.z) {
+            t_max.y= t_max.y + t_delta.y;
             voxel.y += step.y;
         } else {
-            t_max_z = t_max_z + t_delta.z;
+            t_max.z = t_max.z + t_delta.z;
             voxel.z += step.z;
         }
 
@@ -99,6 +101,8 @@ fn fs_main(in: VertexInput) -> @location(0) vec4<f32> {
             return vec4<f32>(vec3<f32>(voxel) / 100.0, 1.0);
         };
     }
+
+    //return vec4<f32>(vec3<f32>(voxel) / 100.0, 1.0);
 
     return vec4<f32>(0.0);
 }
