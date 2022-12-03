@@ -55,7 +55,7 @@ impl App {
         /*if frame_time < 50 {
             return
         }*/ 
-        println!("frame time: {}", frame_time as u32);
+        //println!("frame time: {}", frame_time as u32);
         self.last_frame = Instant::now();
 
         //update the tex offset to move in a circle

@@ -20,7 +20,8 @@ fn vs_main(
 
 @group(1) @binding(0) var<uniform> resolution: vec2<f32>;
 @group(1) @binding(1) var<uniform> camera_position: vec3<f32>;
-@group(1) @binding(2) var<uniform> near: f32;
+@group(1) @binding(2) var<uniform> view_matrix: mat4x4<f32>;
+@group(1) @binding(3) var<uniform> near: f32;
 
 fn voxel_from_pos(position: vec3<i32>) -> bool {
     let in_range = vec3<i32>(0) < position && position < vec3<i32>(32);
@@ -42,13 +43,16 @@ fn voxel_from_pos(position: vec3<i32>) -> bool {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     //start by transforming out index into a vec2
     //transform position to have an origin at the center
-    var p = (in.position.xy - resolution / 2.0) / 100.0;
+    //var p = (in.position.xy - resolution / 2.0) / 100.0;
+    var p = (in.position.xy - resolution / 2.0) / (resolution / 2.0);
     p.y = -1.0 * p.y;
+    let screen_world = vec3<f32>(p, near);
+    let mag = length(vec3<f32>(p, near));
 
     //figure out our ray from the postion and camera position, for now assuming the camera points towards positive z (near is positive)
     //we divide by zoom?? here
     let origin = camera_position;
-    let world_ray = normalize(vec3<f32>(p, near));
+    let world_ray = (view_matrix * vec4<f32>(normalize(screen_world), 0.0)).xyz;
 
     //should vectorize all these operations, no reason to be this verbose
     let step = vec3<i32>(sign(world_ray));
@@ -84,7 +88,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     //we now have a starting voxel we should check for collision???
     
     //cap the number of iterations at zero
-    for(var i: i32; i < 50; i++) {
+    for(var i: i32; i < 100; i++) {
         if abs(t_max.x) < abs(t_max.y) && abs(t_max.x) < abs(t_max.z) {
             t_max.x = t_max.x + t_delta.x;
             voxel.x += step.x;
@@ -104,5 +108,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     //return vec4<f32>(vec3<f32>(voxel) / 100.0, 1.0);
 
-    return vec4<f32>(0.0);
+    return vec4<f32>(vec3<f32>(0.0), 1.0);
 }

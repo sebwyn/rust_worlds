@@ -1,3 +1,5 @@
+use cgmath::Point3;
+
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Zeroable, bytemuck::Pod, Debug)]
 pub struct Vec2 { pub x: f32, pub y: f32 }
@@ -79,5 +81,11 @@ impl std::ops::Sub for Vec3 {
 
     fn sub(self, rhs: Self) -> Self::Output {
         Vec3 { x: self.x - rhs.x, y: self.y - rhs.y, z: self.z - rhs.z }
+    }
+}
+
+impl Into<Point3<f32>> for Vec3 {
+    fn into(self) -> Point3<f32> {
+        Point3 { x: self.x, y: self.y, z: self.z }
     }
 }

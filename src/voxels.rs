@@ -1,7 +1,11 @@
+use std::time::Instant;
+
 use crate::graphics::RenderPipeline;
 use crate::graphics::RenderApi;
+use crate::graphics::UniformBinding;
 use crate::graphics::{ShaderDescriptor, RenderPipelineDescriptor, Attachment, AttachmentAccess, RenderPrimitive};
 
+use std::f64::consts;
 use rayon::prelude::*;
 
 //define a vert that just has a position
@@ -42,7 +46,11 @@ struct Voxel {
 
 
 pub struct Voxels {
-    pipeline: RenderPipeline
+    pipeline: RenderPipeline,
+
+    camera_position_binding: UniformBinding,
+    view_matrix_binding: UniformBinding,
+    start_time: Instant
 }
 
 impl Voxels {
@@ -116,18 +124,44 @@ impl Voxels {
         let resolution_binding = pipeline.shader().get_uniform_binding("resolution").expect("Can't find resolution uniform in voxel shader!");
         pipeline.shader().set_uniform(&resolution_binding, Vec2 { x: width as f32, y: height as f32 }).expect("failed to set uniform resolution");
 
-        let camera_position_binding = pipeline.shader().get_uniform_binding("camera_position").expect("Can't find near uniform in voxel shader!");
-        pipeline.shader().set_uniform(&camera_position_binding, Vec3 { x: 16f32, y: 16f32, z: 0f32}).expect("failed to set uniform near!");
+        //pipeline.shader().set_uniform(&camera_position_binding, Vec3 { x: 16f32, y: 16f32, z: 0f32}).expect("failed to set uniform near!");
 
         let near_binding = pipeline.shader().get_uniform_binding("near").expect("Can't find near uniform in voxel shader!");
-        pipeline.shader().set_uniform(&near_binding, 2f32).expect("failed to set uniform near!");
+        pipeline.shader().set_uniform(&near_binding, 1f32).expect("failed to set uniform near!");
+
+        let camera_position_binding = pipeline.shader().get_uniform_binding("camera_position").expect("Can't find near camera position uniform in voxel shader!");
+        let view_matrix_binding = pipeline.shader().get_uniform_binding("view_matrix").expect("Can't find near view direction uniform in voxel shader!");
+
+        let start_time = Instant::now();
 
         Self {
-            pipeline
+            pipeline,
+            camera_position_binding,
+            view_matrix_binding,
+
+            start_time,
         }
     }
 
-    pub fn render(&self, surface_view: &wgpu::TextureView) {
+    pub fn render(&mut self, surface_view: &wgpu::TextureView) {
+        let mut camera_position = Vec3 { x: 0f32, y: 16f32, z: 0f32 };
+        //add our sin and cosines of time here
+
+        let duration = ((self.start_time.elapsed().as_millis() % 20000) as f64 / 10000f64 * 2f64 * consts::PI) as f32;
+        camera_position.x -= 16f32 * duration.sin();
+        camera_position.z -= 16f32 * duration.cos();
+
+        //let view_angle = 
+        //let view_matrix = cgmath::Matrix4::look_at_rh(camera_position.into(), look_at.into(), cgmath::Vector3 { x: 0f32, y: 1f32, z: 0f32 });
+        let view_matrix = cgmath::Matrix4::from_angle_y(cgmath::Rad::<f32>(duration));
+        let view_matrix_data: [[f32; 4]; 4] = view_matrix.into();
+
+        //println!("{:?}, {:?}", camera_position, view_direction);
+
+        self.pipeline.shader().set_uniform(&self.camera_position_binding, camera_position);
+        self.pipeline.shader().set_uniform(&self.view_matrix_binding, view_matrix_data);
+
+
         self.pipeline.render(surface_view);
     }
 }
