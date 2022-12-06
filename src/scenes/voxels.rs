@@ -1,3 +1,4 @@
+use crate::core::Scene;
 use crate::graphics::RenderPipeline;
 use crate::graphics::RenderApi;
 use crate::graphics::UniformBinding;
@@ -152,13 +153,19 @@ impl Voxels {
         }
     }
 
+}
+
+impl Scene for Voxels {
     //this update just serves as a camera controller right now
-    pub fn update(&mut self, events: &[Event]) {
+    fn update(&mut self, events: &[Event]) {
         //self.camera_position = Vec3 { x: 0f32, y: 16f32, z: 0f32 };
         //add our sin and cosines of time here
         
         let forward = self.view_matrix * cgmath::Vector4 { x: 0.0, y: 0.0, z: 1.0 , w: 0.0 };
         let left    = self.view_matrix * cgmath::Vector4 { x: 1.0, y: 0.0, z: 0.0 , w: 0.0 };
+
+        let half_width = self.window.size().0 as f64 / 2.0;
+        let half_height = self.window.size().1 as f64 / 2.0;
         
         for event in events {
             match event {
@@ -176,8 +183,6 @@ impl Voxels {
                             self.rotation_enabled = !self.rotation_enabled;
 
                             if self.rotation_enabled {
-                                let half_width = 800.0 / 2.0;
-                                let half_height = 600.0 / 2.0;
                                 self.window.winit_window()
                                     .set_cursor_position(Into::<winit::dpi::PhysicalPosition<f64>>::into(
                                             (half_width, half_height)
@@ -195,14 +200,10 @@ impl Voxels {
                 Event::CursorMoved(position) if self.rotation_enabled => {
                     //because cursor grab mode is set we can set cursor position and go from there
                     //do our cursor math here 
-                    //for now hard code width and height
-                    let half_width = 800.0 / 2.0;
-                    let half_height = 600.0 / 2.0;
                     let delta = (position.0 - half_width, position.1 - half_height);
                     
-                    //this will make a drag to the very edge of the screen rotate you one quarter
+                    //add some angle to our current rotation
                     self.y_rotation += (delta.0 / half_width) as f32;
-
                     self.x_rotation += (delta.1 / half_height) as f32;
                     self.x_rotation = self.x_rotation.signum() * f32::min(self.x_rotation.abs(), 1.5);
 
@@ -223,7 +224,7 @@ impl Voxels {
         } 
     }
 
-    pub fn render(&mut self, surface_view: &wgpu::TextureView) {
+    fn render(&mut self, surface_view: &wgpu::TextureView) {
         let view_matrix_data: [[f32; 4]; 4] = self.view_matrix.into();
 
         self.pipeline.shader().set_uniform(&self.camera_position_binding, self.camera_position).unwrap();
@@ -232,4 +233,6 @@ impl Voxels {
 
         self.pipeline.render(surface_view);
     }
+
+
 }

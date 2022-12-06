@@ -1,12 +1,11 @@
-use std::{time::Instant, rc::Rc};
-use winit::{event_loop::ControlFlow, event::{WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, Event}};
 
 use crate::graphics::RenderApi;
-use crate::core::{Window, EventSystem};
+use crate::core::{Window, EventSystem, Scene};
 
-//use crate::RotatingTri;
 use crate::Voxels;
 
+use std::{time::Instant, rc::Rc};
+use winit::{event_loop::ControlFlow, event::{WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, Event}};
 
 pub struct App {
     _width: u32,
@@ -57,6 +56,10 @@ impl App {
         self.voxels.update(&events);
     }
 
+    pub fn resize(&mut self, new_size: (u32, u32)) {
+        self.api.resize(new_size)
+    }
+
     pub fn render(&mut self) {
         //limit frame rate because this cpu shit is crazy
         let _frame_time = self.last_frame.elapsed().as_millis();
@@ -91,7 +94,9 @@ impl App {
                         },
                         ..
                     } => *control_flow = ControlFlow::Exit,
-                    WindowEvent::Resized(_new_size) => {},
+                    WindowEvent::Resized(new_size) => {
+                        app.resize((new_size.width, new_size.height));
+                    },
 
                     e => { app.events.handle_event(e); },
                 },
