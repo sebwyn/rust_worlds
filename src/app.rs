@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{time::Instant, rc::Rc};
 use winit::{event_loop::ControlFlow, event::{WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, Event}};
 
 use crate::graphics::RenderApi;
@@ -12,7 +12,7 @@ pub struct App {
     _width: u32,
     _height: u32,
 
-    window: Window,
+    window: Rc<Window>,
     api: RenderApi,
 
     last_frame: Instant,
@@ -28,14 +28,14 @@ impl App {
         let width = 800;
         let height = 600;
 
-        let window = Window::new(event_loop, "Worlds App", width, height);
+        let window = Rc::new(Window::new(event_loop, "Worlds App", width, height));
         let api = pollster::block_on(RenderApi::new(&window));
 
         //initialize our event system
         let events = EventSystem::new();
 
         //initialize our scene
-        let voxels = Voxels::new(&api, width, height);
+        let voxels = Voxels::new(window.clone(), &api, width, height);
 
         let last_frame = Instant::now();
 
@@ -66,7 +66,7 @@ impl App {
                 return
             }
         */
-        println!("frame time: {}", frame_time as u32);
+        //println!("frame time: {}", frame_time as u32);
 
         self.last_frame = Instant::now();
 

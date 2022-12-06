@@ -3,8 +3,10 @@ use crate::graphics::RenderApi;
 use crate::graphics::UniformBinding;
 use crate::graphics::{ShaderDescriptor, RenderPipelineDescriptor, Attachment, AttachmentAccess, RenderPrimitive};
 
+use crate::core::Window;
 use crate::core::Event;
 
+use std::rc::Rc;
 use std::time::Instant;
 use rayon::prelude::*;
 
@@ -51,14 +53,18 @@ pub struct Voxels {
     start_time: Instant,
     camera_position: Vec3,
 
+    rotation_enabled: bool,
     //update this with shit
+    y_rotation: f32,
+    x_rotation: f32,
     view_matrix: cgmath::Matrix4<f32>,
-    last_press: (f64, f64),
+    window: Rc<Window>,
 
     //rendering stuff
     pipeline: RenderPipeline,
     camera_position_binding: UniformBinding,
     view_matrix_binding: UniformBinding,
+
 }
 
 impl Voxels {
@@ -85,7 +91,7 @@ impl Voxels {
         }
     }
 
-    pub fn new(api: &RenderApi, width: u32, height: u32) -> Self {
+    pub fn new(window: Rc<Window>, api: &RenderApi, width: u32, height: u32) -> Self {
         let mut pipeline = api.create_render_pipeline_with_vertex::<Vert>(RenderPipelineDescriptor { 
             attachment_accesses: vec![
                 AttachmentAccess {
@@ -139,9 +145,12 @@ impl Voxels {
         Self {
             start_time,
             camera_position: Vec3 { x: 0f32, y: 0f32, z: 0f32 },
-            view_matrix: cgmath::Matrix4::one(),
 
-            last_press: (0.0, 0.0),
+            rotation_enabled: false,
+            x_rotation: 0f32,
+            y_rotation: 0f32,
+            view_matrix: cgmath::Matrix4::one(),
+            window,
 
             pipeline,
             camera_position_binding,
@@ -167,30 +176,52 @@ impl Voxels {
                         VirtualKeyCode::D => self.camera_position = self.camera_position + Vec3::from(left),
                         VirtualKeyCode::J => self.camera_position.y -= 1.0,
                         VirtualKeyCode::K => self.camera_position.y += 1.0,
+                        VirtualKeyCode::E => {
+                            //toggle rotation
+                            self.rotation_enabled = !self.rotation_enabled;
+
+                            if self.rotation_enabled {
+                                let half_width = 800.0 / 2.0;
+                                let half_height = 600.0 / 2.0;
+                                self.window.winit_window()
+                                    .set_cursor_position(Into::<winit::dpi::PhysicalPosition<f64>>::into(
+                                            (half_width, half_height)
+                                    ))
+                                    .unwrap();
+                            }
+                        },
                         _ => {}
                         
                     }
                 },
                 Event::KeyReleased(_) => {},
-                Event::MousePressed((_, position)) => { self.last_press = *position; },
-                Event::MouseReleased((_, position)) => {
-                    //calculate our delta, change our camera angle based on this delta
-                    let delta = (position.0 - self.last_press.0, position.1 - self.last_press.1);
-                    //convert this delta into pixel space 
-                    //for now hard code with and height
-                    let width = 800.0;
-                    let height = 600.0;
+                Event::MousePressed((_, _position)) => {},
+                Event::MouseReleased((_, _position)) => {},
+                Event::CursorMoved(position) if self.rotation_enabled => {
+                    //because cursor grab mode is set we can set cursor position and go from there
+                    //do our cursor math here 
+                    //for now hard code width and height
+                    let half_width = 800.0 / 2.0;
+                    let half_height = 600.0 / 2.0;
+                    let delta = (position.0 - half_width, position.1 - half_height);
                     
                     //this will make a drag to the very edge of the screen rotate you one quarter
-                    let y_rotation = delta.0 / (width / 2.0 ) * (std::f64::consts::PI / 4.0);
-                    let x_rotation = delta.1 / (height / 2.0) * (std::f64::consts::PI / 4.0);
+                    self.y_rotation += (delta.0 / half_width) as f32;
+
+                    self.x_rotation += (delta.1 / half_height) as f32;
+                    self.x_rotation = self.x_rotation.signum() * f32::min(self.x_rotation.abs(), 1.5);
 
                     //do our rotation here
-                    self.view_matrix = self.view_matrix *
-                        cgmath::Matrix4::from_angle_y(cgmath::Rad(y_rotation as f32)) * 
-                        cgmath::Matrix4::from_angle_x(cgmath::Rad(x_rotation as f32));
+                    self.view_matrix =
+                        cgmath::Matrix4::from_angle_y(cgmath::Rad(self.y_rotation)) * 
+                        cgmath::Matrix4::from_angle_x(cgmath::Rad(self.x_rotation));
+                    
+                    self.window.winit_window()
+                        .set_cursor_position(Into::<winit::dpi::PhysicalPosition<f64>>::into(
+                                (half_width, half_height)
+                        ))
+                        .unwrap();
                 },
-                Event::CursorMoved(_) => {},
                 _ => {}
             }
 
