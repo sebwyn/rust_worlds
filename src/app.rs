@@ -48,7 +48,7 @@ impl App {
             last_frame,
 
             events,
-            voxels
+            voxels,
         }
     }
 
@@ -59,15 +59,7 @@ impl App {
 
     pub fn render(&mut self) {
         //limit frame rate because this cpu shit is crazy
-        let frame_time = self.last_frame.elapsed().as_millis();
-
-        /*
-            if frame_time < 50 {
-                return
-            }
-        */
-        //println!("frame time: {}", frame_time as u32);
-
+        let _frame_time = self.last_frame.elapsed().as_millis();
         self.last_frame = Instant::now();
 
         //update the tex offset to move in a circle

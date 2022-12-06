@@ -54,10 +54,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let origin = camera_position;
     var world_ray = (view_matrix * vec4<f32>(normalize(screen_world), 0.0)).xyz;
 
-    if(-0.001 < world_ray.y && world_ray.y < 0.001){
-        world_ray.y = 0.0;
-    }
-
     //should vectorize all these operations, no reason to be this verbose
     let step = vec3<i32>(sign(world_ray));
     let t_delta = 1.0 / world_ray;

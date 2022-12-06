@@ -1,4 +1,3 @@
-use bevy_ecs::prelude::*;
 use winit::event::{VirtualKeyCode, WindowEvent, ElementState, MouseButton};
 
 #[derive(Clone)]
@@ -28,12 +27,6 @@ impl EventSystem {
             mouse_pos: (0f64, 0f64)
         }
     }
-
-    /*
-    pub fn init(&self, world: &mut World) {
-        world.insert_resource(Events::<Event>::default());
-    }
-    */
 
     pub fn handle_event(&mut self, event: &WindowEvent) {
         //construct my event object here
@@ -83,30 +76,18 @@ impl EventSystem {
         };
 
         //add the event to an internal list of events
-
         if let Some(event) = event {
             self.events.push(event);
-
-            /*
-            let mut events = world.get_resource_mut::<Events<Event>>().expect("No events in world? has event system been initialized");
-            events.send(event);
-            */
         }
     }
 
     pub fn emit(&mut self) -> Vec<Event> {
         //aggregate cursor moved events here
         if self.cursor_moved {
-            //let mut events = world.get_resource_mut::<Events<Event>>().expect("No events in world? has event system been initialized");
-            //events.send(Event::CursorMoved(self.mouse_pos));
-
             self.events.push(Event::CursorMoved(self.mouse_pos));
             self.cursor_moved = false;
         }
         
         std::mem::take(&mut self.events)
-
-        //let mut events = world.get_resource_mut::<Events<Event>>().expect("No events in world?, has event system been initialized");
-        //events.update();
     }
 }

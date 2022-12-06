@@ -10,7 +10,7 @@ impl Window {
         let window = winit::window::WindowBuilder::new()
             .with_title(title)
             .with_inner_size(PhysicalSize { width, height })
-            .build(&event_loop)
+            .build(event_loop)
             .unwrap();
         
         Window {

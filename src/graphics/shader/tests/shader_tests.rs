@@ -1,4 +1,4 @@
-use super::reflector::reflect_shader;
+use crate::graphics::shader::reflector::reflect_shader;
 
 use std::path::Path;
 
@@ -11,5 +11,4 @@ fn test_reflection() {
 
     let reflection = reflect_shader(&shader_source);
     println!("{:?}", reflection)
-
 }

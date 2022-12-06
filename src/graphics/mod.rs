@@ -8,14 +8,16 @@ pub use shader::{ShaderDescriptor, UniformBinding, TextureBinding};
 
 pub mod wgsl_types;
 
-mod attachment;
-pub use attachment::{Attachment, AttachmentAccess};
-
 mod render_pipeline;
-pub use render_pipeline::{RenderPipeline, RenderPipelineDescriptor, RenderPrimitive, Vertex};
+pub use render_pipeline::{
+    RenderPipeline,
 
-mod renderer;
-pub use renderer::Renderer;
+    RenderPipelineDescriptor,
+    RenderPrimitive,
+    Vertex,
+    Attachment,
+    AttachmentAccess
+};
 
 mod texture;
 pub use texture::{Texture, Sampler};

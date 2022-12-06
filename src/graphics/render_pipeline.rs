@@ -1,10 +1,21 @@
+use super::{Shader, ShaderDescriptor};
+use super::{RenderApi, RenderContext};
 use super::Texture;
-use super::{Shader, ShaderDescriptor, UniformBinding, TextureBinding};
-use super::{Attachment, AttachmentAccess, RenderApi, RenderContext};
 
 use std::rc::Rc;
 
 use wgpu::util::DeviceExt;
+
+//an attachment is a render target
+pub enum Attachment {
+    Swapchain,
+    Texture(Rc<Texture>),
+}
+
+pub struct AttachmentAccess {
+    pub clear_color: Option<([f64; 4])>,
+    pub attachment: Attachment,
+}
 
 #[derive(Clone)]
 pub enum RenderPrimitive {
@@ -40,11 +51,6 @@ pub struct RenderPipelineDescriptor<'a> {
     pub primitive: RenderPrimitive
 }
 
-pub struct Vertices {
-    vertices: Option<(u32, wgpu::Buffer)>,
-    indices: Option<(u32, wgpu::Buffer)>,
-}
-
 pub struct RenderPipeline {
     shader: Shader,
 
@@ -52,8 +58,10 @@ pub struct RenderPipeline {
     _layout: wgpu::PipelineLayout,
     pipeline: wgpu::RenderPipeline,
 
+    vertices: Option<(u32, wgpu::Buffer)>,
+    indices: Option<(u32, wgpu::Buffer)>,
+
     has_vertex: bool,
-    vertices: Option<Vertices>,
 
     context: Rc<RenderContext>
 }
@@ -64,17 +72,11 @@ impl RenderPipeline {
 
 //temporary
 impl RenderPipeline {
-    pub fn new(descriptor: RenderPipelineDescriptor, api: &RenderApi) -> Self {
-        Self::create(descriptor, &[], api)
-    }
-    
     pub fn new_with_vertex<T>(descriptor: RenderPipelineDescriptor, api: &RenderApi) -> Self 
     where
         T: Vertex
     {
-        let mut instance = Self::create(descriptor, &[T::desc()], api);
-        instance.has_vertex = true;
-        instance
+        Self::create(descriptor, &[T::desc()], api)
     }
 
     pub fn set_vertices<T>(&mut self, new_vertices: &[T]) 
@@ -89,13 +91,7 @@ impl RenderPipeline {
             contents: bytemuck::cast_slice(new_vertices), 
             usage: wgpu::BufferUsages::VERTEX
         });
-        let new_vertex_buffer = Some((new_vertices.len() as u32, new_buffer));
-
-        if let Some(vertices) = &mut self.vertices {
-            vertices.vertices = new_vertex_buffer;
-        } else {
-            self.vertices = Some(Vertices { vertices: new_vertex_buffer, indices: None });
-        }
+        self.vertices = Some((new_vertices.len() as u32, new_buffer));
     }
 
     pub fn set_indices(&mut self, new_indices: &[u32]) {
@@ -107,13 +103,7 @@ impl RenderPipeline {
             contents: bytemuck::cast_slice(new_indices), 
             usage: wgpu::BufferUsages::INDEX
         });
-        let new_index_buffer = Some((new_indices.len() as u32, new_buffer));
-
-        if let Some(vertices) = &mut self.vertices {
-            vertices.indices = new_index_buffer;
-        } else {
-            self.vertices = Some(Vertices { vertices: None, indices: new_index_buffer });
-        }
+        self.indices = Some((new_indices.len() as u32, new_buffer));
     }
 
     fn generate_framebuffer<'a>(&'a self, surface_view: &'a wgpu::TextureView) -> Vec<Option<wgpu::RenderPassColorAttachment<'a>>> {
@@ -146,15 +136,11 @@ impl RenderPipeline {
         }).collect()
     }
 
-    //this will be shitty at first, because we're generating a command buffer for every pipeline
+    //TODO: think about reusing command encoders for pipelines
+    //note: each command encoder needs to have the same frame buffers associated with it
+    //a command encoder in wgpu maps onto a render stage
     pub fn render(&self, surface_view: &wgpu::TextureView) {
-
-        let verts = if let Some(vertices) = &self.vertices {
-            let (count, vertex_buffer) = vertices.vertices.as_ref().expect("Rendering without any vertices");
-            Some((count, vertex_buffer, vertices.indices.as_ref()))
-        } else {
-            None
-        };
+        let (vertex_count, vertex_buffer) = self.vertices.as_ref().expect("Trying to render without vertices bound");
 
         let color_attachments = self.generate_framebuffer(surface_view);
 
@@ -173,18 +159,15 @@ impl RenderPipeline {
 
             //this line is controversial
             self.shader.bind_uniforms(&mut render_pass);
+            
+            //bind our vertices here
+            render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
 
-            if let Some((vertex_count, vertex_buffer, indices)) = verts {
-                render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-                if let Some((index_count, index_buffer)) = indices {
-                    render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-                    render_pass.draw_indexed(0..*index_count, 0, 0..1);
-                } else {
-                    render_pass.draw(0..*vertex_count, 0..1);
-                }
+            if let Some((index_count, index_buffer)) = &self.indices {
+                render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.draw_indexed(0..*index_count, 0, 0..1);
             } else {
-                println!("Drawing with no verts");
-                render_pass.draw(0..3, 0..1);
+                render_pass.draw(0..*vertex_count, 0..1);
             }
         }
 
@@ -273,8 +256,10 @@ impl RenderPipeline {
             
             context: api.render_context.clone(),
 
-            has_vertex: false,
-            vertices: None
+            has_vertex: true,
+            vertices: None,
+            indices: None
+
         }
     }
 

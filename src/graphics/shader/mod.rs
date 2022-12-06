@@ -12,4 +12,4 @@ mod texture_group;
 use texture_group::TextureGroup;
 
 #[cfg(test)]
-mod shader_tests;
+mod tests;

@@ -1,6 +1,7 @@
 use std::time::Instant;
 
 use crate::graphics::RenderApi;
+use crate::graphics::Sampler;
 use crate::graphics::ShaderDescriptor;
 use crate::graphics::{RenderPipelineDescriptor, RenderPrimitive, RenderPipeline};
 use crate::graphics::{Attachment, AttachmentAccess};
@@ -38,8 +39,9 @@ impl RotatingTri  {
         });
 
         let texture = api.load_texture("tex.jpeg");
-        let texture_binding = pipeline.get_texture_binding("diffuse").expect("Can't get texture uniform");
-        pipeline.update_texture(&texture_binding, &texture).expect("failed to set texture");
+        let texture_binding = pipeline.shader().get_texture_binding("diffuse").expect("Can't get texture uniform");
+        let sampler = Some(Sampler::new(api.context().device()));
+        pipeline.shader().update_texture(&texture_binding, &texture, sampler.as_ref()).expect("failed to set texture");
 
         let magnitude = 120f32;
         let positions: Vec<Vec2> = (0..3).map(|index| index as f32 * (2f32*std::f32::consts::PI) / 3f32).map(|angle| Vec2 { x: magnitude * f32::cos(angle), y: magnitude * f32::sin(angle)}).collect();

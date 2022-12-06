@@ -7,9 +7,7 @@ use crate::core::Window;
 use crate::core::Event;
 
 use std::rc::Rc;
-use std::time::Instant;
 use rayon::prelude::*;
-
 use cgmath::One;
 
 //define a vert that just has a position
@@ -50,7 +48,6 @@ struct Voxel {
 
 pub struct Voxels {
     //logic stuff
-    start_time: Instant,
     camera_position: Vec3,
 
     rotation_enabled: bool,
@@ -140,10 +137,7 @@ impl Voxels {
         let camera_position_binding = pipeline.shader().get_uniform_binding("camera_position").expect("Can't find near camera position uniform in voxel shader!");
         let view_matrix_binding = pipeline.shader().get_uniform_binding("view_matrix").expect("Can't find near view direction uniform in voxel shader!");
 
-        let start_time = Instant::now();
-
         Self {
-            start_time,
             camera_position: Vec3 { x: 0f32, y: 0f32, z: 0f32 },
 
             rotation_enabled: false,
@@ -158,6 +152,7 @@ impl Voxels {
         }
     }
 
+    //this update just serves as a camera controller right now
     pub fn update(&mut self, events: &[Event]) {
         //self.camera_position = Vec3 { x: 0f32, y: 16f32, z: 0f32 };
         //add our sin and cosines of time here
@@ -226,13 +221,6 @@ impl Voxels {
             }
 
         } 
-
-        //let duration = ((self.start_time.elapsed().as_millis() % 20000) as f64 / 10000f64 * 2f64 * consts::PI) as f32;
-        //self.camera_position.x -= 16f32 * duration.sin();
-        //self.camera_position.z -= 16f32 * duration.cos();
-
-        //let view_matrix = cgmath::Matrix4::look_at_rh(camera_position.into(), look_at.into(), cgmath::Vector3 { x: 0f32, y: 1f32, z: 0f32 });
-        //self.view_matrix = cgmath::Matrix4::from_angle_y(cgmath::Rad::<f32>(duration));
     }
 
     pub fn render(&mut self, surface_view: &wgpu::TextureView) {

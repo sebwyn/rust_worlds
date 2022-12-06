@@ -46,25 +46,6 @@ impl Texture {
 }
 
 impl Texture {
-    pub fn new_image<T>(width: u32, height: u32, render_context: &RenderContext) -> Self 
-    where
-        T: image::Pixel<Subpixel = u8>
-    {
-        let bytes_per_pixel = T::CHANNEL_COUNT as u32;
-
-        let format = match bytes_per_pixel {
-            4 => wgpu::TextureFormat::Rgba8UnormSrgb,
-            _ => panic!("Unsupported pixel format")
-        };
-
-        Self::create(
-            wgpu::TextureFormat::Rgba8UnormSrgb, 
-            bytes_per_pixel,
-            (width, height),
-            render_context.device()
-        )
-    }
-
     //TODO: create a grpahics texture object, to wrap wgpu
     pub fn new<T>(width: u32, height: u32, format: wgpu::TextureFormat, render_context: &RenderContext) -> Self {
         let bytes_per_pixel = size_of::<T>() as u32;
@@ -93,7 +74,7 @@ impl Texture {
             render_context.device()
         );
 
-        texture.write_image(&texture_rgba, render_context.queue());
+        texture.write_buffer(&texture_rgba, render_context.queue());
         texture
     }
 
@@ -105,16 +86,11 @@ impl Texture {
         };
 
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            // All textures are stored as 3D, we represent our 2D texture
-            // by setting depth to 1.
             size: extent,
-            mip_level_count: 1, // We'll talk about this a little later
+            mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            // Most images are stored using sRGB so we need to reflect that here.
             format,
-            // TEXTURE_BINDING tells wgpu that we want to use this texture in shaders
-            // COPY_DST means that we want to copy data to this texture
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             label: Some("diffuse_texture"),
         });
@@ -132,31 +108,15 @@ impl Texture {
         }
     }
 
-    pub fn write_image<T>(&self, image: &image::ImageBuffer<T, Vec<u8>>, queue: &wgpu::Queue) 
-    where
-        T: image::Pixel<Subpixel = u8>
-    {
-        //add some assertions here to make sure your writing an image with a valid format
-        assert!(image.width() == self.extent.width && image.height() == self.extent.height, "Have to write to whole texture!");
-        
-        //this assert isn't necessarily true if components aren't u8's but then this function wouldn't work any i think
-        assert!(T::CHANNEL_COUNT as u32 == self.bytes_per_pixel, "Writing an image to a texture with different channel count!");
-
-        self.write_buffer(image, queue);
-    }
-
     pub fn write_buffer(&self, buffer: &[u8], queue: &wgpu::Queue) {
         queue.write_texture(
-            // Tells wgpu where to copy the pixel data
             wgpu::ImageCopyTexture {
                 texture: &self.texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
-            // The actual pixel data
-            &buffer,
-            // The layout of the texture
+            buffer,
             wgpu::ImageDataLayout {
                 offset: 0,
                 bytes_per_row: std::num::NonZeroU32::new(self.bytes_per_pixel * self.extent.width),
@@ -170,8 +130,8 @@ impl Texture {
 
 
 fn load_file_bytes(path: &str) -> Vec<u8> {
-    let mut f = File::open(&path).expect("no file found");
-    let metadata = std::fs::metadata(&path).expect("unable to read metadata");
+    let mut f = File::open(path).expect("no file found");
+    let metadata = std::fs::metadata(path).expect("unable to read metadata");
 
     let mut buffer = vec![0; metadata.len() as usize];
     f.read(&mut buffer).expect("buffer overflow");
