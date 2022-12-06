@@ -11,9 +11,9 @@ pub enum Event {
 } 
 
 pub struct EventSystem {
-    //private storage of shit
     mouse_inside: bool,
-
+    events: Vec<Event>,
+    
     pub cursor_moved: bool,
     pub mouse_pos: (f64, f64)
 }
@@ -22,16 +22,20 @@ impl EventSystem {
     pub fn new() -> Self {
         Self {
             mouse_inside: true,
+            events: Vec::new(),
+
             cursor_moved: false,
             mouse_pos: (0f64, 0f64)
         }
     }
 
+    /*
     pub fn init(&self, world: &mut World) {
         world.insert_resource(Events::<Event>::default());
     }
+    */
 
-    pub fn on_event(&mut self, world: &mut World, event: &WindowEvent) {
+    pub fn handle_event(&mut self, event: &WindowEvent) {
         //construct my event object here
         let event = match event {
             //WindowEvent::Resized(_) => todo!(),
@@ -78,21 +82,31 @@ impl EventSystem {
             _ => None
         };
 
+        //add the event to an internal list of events
+
         if let Some(event) = event {
+            self.events.push(event);
+
+            /*
             let mut events = world.get_resource_mut::<Events<Event>>().expect("No events in world? has event system been initialized");
             events.send(event);
+            */
         }
     }
 
-    pub fn update(&mut self, world: &mut World) {
+    pub fn emit(&mut self) -> Vec<Event> {
         //aggregate cursor moved events here
         if self.cursor_moved {
-            let mut events = world.get_resource_mut::<Events<Event>>().expect("No events in world? has event system been initialized");
-            events.send(Event::CursorMoved(self.mouse_pos));
+            //let mut events = world.get_resource_mut::<Events<Event>>().expect("No events in world? has event system been initialized");
+            //events.send(Event::CursorMoved(self.mouse_pos));
+
+            self.events.push(Event::CursorMoved(self.mouse_pos));
             self.cursor_moved = false;
         }
+        
+        std::mem::take(&mut self.events)
 
-        let mut events = world.get_resource_mut::<Events<Event>>().expect("No events in world?, has event system been initialized");
-        events.update();
+        //let mut events = world.get_resource_mut::<Events<Event>>().expect("No events in world?, has event system been initialized");
+        //events.update();
     }
 }

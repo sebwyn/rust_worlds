@@ -52,13 +52,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     //figure out our ray from the postion and camera position, for now assuming the camera points towards positive z (near is positive)
     //we divide by zoom?? here
     let origin = camera_position;
-    let world_ray = (view_matrix * vec4<f32>(normalize(screen_world), 0.0)).xyz;
+    var world_ray = (view_matrix * vec4<f32>(normalize(screen_world), 0.0)).xyz;
+
+    if(-0.001 < world_ray.y && world_ray.y < 0.001){
+        world_ray.y = 0.0;
+    }
 
     //should vectorize all these operations, no reason to be this verbose
     let step = vec3<i32>(sign(world_ray));
     let t_delta = 1.0 / world_ray;
 
-    let world_fract = fract(origin);
+    let world_fract = abs(fract(origin));
 
     var t_max_x = 0.0; 
     if(world_ray.x > 0.0){ 
@@ -81,7 +85,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         t_max_z = world_fract.z;
     };
 
-    var t_max = world_fract * vec3<f32>(t_max_x, t_max_y, t_max_z);
+    var t_max = t_delta * vec3<f32>(t_max_x, t_max_y, t_max_z);
 
     var voxel = vec3<i32>(floor(origin));
 

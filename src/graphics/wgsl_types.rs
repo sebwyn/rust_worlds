@@ -89,3 +89,9 @@ impl Into<Point3<f32>> for Vec3 {
         Point3 { x: self.x, y: self.y, z: self.z }
     }
 }
+
+impl From<cgmath::Vector4<f32>> for Vec3 {
+    fn from(vec4: cgmath::Vector4<f32>) -> Vec3 {
+        Vec3 { x: vec4.x, y: vec4.y, z: vec4.z }
+    }
+}

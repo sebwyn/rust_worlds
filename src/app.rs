@@ -2,8 +2,7 @@ use std::time::Instant;
 use winit::{event_loop::ControlFlow, event::{WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, Event}};
 
 use crate::graphics::RenderApi;
-
-use crate::core::Window;
+use crate::core::{Window, EventSystem};
 
 //use crate::RotatingTri;
 use crate::Voxels;
@@ -18,7 +17,7 @@ pub struct App {
 
     last_frame: Instant,
 
-    //rotating_tri: RotatingTri,
+    events: EventSystem,
     voxels: Voxels,
 }
 
@@ -32,7 +31,10 @@ impl App {
         let window = Window::new(event_loop, "Worlds App", width, height);
         let api = pollster::block_on(RenderApi::new(&window));
 
-        //let rotating_tri = RotatingTri::new(&api);
+        //initialize our event system
+        let events = EventSystem::new();
+
+        //initialize our scene
         let voxels = Voxels::new(&api, width, height);
 
         let last_frame = Instant::now();
@@ -44,25 +46,34 @@ impl App {
             _width: width,
             _height: height,
             last_frame,
-            //rotating_tri,
+
+            events,
             voxels
         }
+    }
+
+    pub fn update(&mut self) {
+        let events = self.events.emit();
+        self.voxels.update(&events);
     }
 
     pub fn render(&mut self) {
         //limit frame rate because this cpu shit is crazy
         let frame_time = self.last_frame.elapsed().as_millis();
-        /*if frame_time < 50 {
-            return
-        }*/ 
-        //println!("frame time: {}", frame_time as u32);
+
+        /*
+            if frame_time < 50 {
+                return
+            }
+        */
+        println!("frame time: {}", frame_time as u32);
+
         self.last_frame = Instant::now();
 
         //update the tex offset to move in a circle
         let current_texture = self.api.surface().get_current_texture().unwrap();
         let current_texture_view = current_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        //self.rotating_tri.render(&current_texture_view, self.width, self.height);
         self.voxels.render(&current_texture_view);
 
         current_texture.present();
@@ -77,26 +88,23 @@ impl App {
             let my_window_id = app.window.winit_window().id(); 
             
             match event {
-                Event::WindowEvent {
-                    ref event,
-                    window_id,
-                } if window_id == my_window_id => match event {
+                Event::WindowEvent { ref event, window_id, }
+                if window_id == my_window_id => match event {
                     //quit if they press escape or close the window
-                    WindowEvent::CloseRequested
-                    | WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            },
+                    WindowEvent::CloseRequested | WindowEvent::KeyboardInput {
+                        input: KeyboardInput {
+                            state: ElementState::Pressed,
+                            virtual_keycode: Some(VirtualKeyCode::Escape),
                             ..
+                        },
+                        ..
                     } => *control_flow = ControlFlow::Exit,
-                    //handle resizes
                     WindowEvent::Resized(_new_size) => {},
-                    _ => {} 
+
+                    e => { app.events.handle_event(e); },
                 },
                 Event::RedrawRequested(window_id) if window_id == my_window_id => {
+                    app.update();
                     app.render();
                 }
                 Event::MainEventsCleared => {

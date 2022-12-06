@@ -1,23 +1,24 @@
-use std::time::Instant;
-
 use crate::graphics::RenderPipeline;
 use crate::graphics::RenderApi;
 use crate::graphics::UniformBinding;
 use crate::graphics::{ShaderDescriptor, RenderPipelineDescriptor, Attachment, AttachmentAccess, RenderPrimitive};
 
-use std::f64::consts;
+use crate::core::Event;
+
+use std::time::Instant;
 use rayon::prelude::*;
 
+use cgmath::One;
+
 //define a vert that just has a position
+use crate::graphics::Vertex;
 pub use crate::graphics::wgsl_types::{Vec2, Vec3};
 
-fn to_byte_slice<'a>(uints: &'a [u32]) -> &'a [u8] {
+fn to_byte_slice(uints: & [u32]) -> &[u8] {
     unsafe {
         std::slice::from_raw_parts(uints.as_ptr() as *const _, uints.len() * 4)
     }
 }
-
-use crate::graphics::Vertex;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
@@ -46,11 +47,18 @@ struct Voxel {
 
 
 pub struct Voxels {
-    pipeline: RenderPipeline,
+    //logic stuff
+    start_time: Instant,
+    camera_position: Vec3,
 
+    //update this with shit
+    view_matrix: cgmath::Matrix4<f32>,
+    last_press: (f64, f64),
+
+    //rendering stuff
+    pipeline: RenderPipeline,
     camera_position_binding: UniformBinding,
     view_matrix_binding: UniformBinding,
-    start_time: Instant
 }
 
 impl Voxels {
@@ -71,13 +79,9 @@ impl Voxels {
         let dist = (sphere_center - voxel_center).magnitude();
 
         if dist < 8.0 {
-            Voxel {
-                exists: true
-            }
+            Voxel { exists: true }
         } else {
-            Voxel {
-                exists: false
-            }
+            Voxel { exists: false }
         }
     }
 
@@ -108,7 +112,7 @@ impl Voxels {
             //iterate row_z and construct a u32 with voxel data
             let mut voxel_out = 0u32;
             for x in 0..32 {
-                voxel_out = voxel_out | if Self::generate_voxel(x, y, z).exists { 1 } else { 0 } << x;
+                voxel_out |= u32::from(Self::generate_voxel(x, y, z).exists) << x;
             }
 
             voxel_out
@@ -124,8 +128,6 @@ impl Voxels {
         let resolution_binding = pipeline.shader().get_uniform_binding("resolution").expect("Can't find resolution uniform in voxel shader!");
         pipeline.shader().set_uniform(&resolution_binding, Vec2 { x: width as f32, y: height as f32 }).expect("failed to set uniform resolution");
 
-        //pipeline.shader().set_uniform(&camera_position_binding, Vec3 { x: 16f32, y: 16f32, z: 0f32}).expect("failed to set uniform near!");
-
         let near_binding = pipeline.shader().get_uniform_binding("near").expect("Can't find near uniform in voxel shader!");
         pipeline.shader().set_uniform(&near_binding, 1f32).expect("failed to set uniform near!");
 
@@ -135,31 +137,78 @@ impl Voxels {
         let start_time = Instant::now();
 
         Self {
+            start_time,
+            camera_position: Vec3 { x: 0f32, y: 0f32, z: 0f32 },
+            view_matrix: cgmath::Matrix4::one(),
+
+            last_press: (0.0, 0.0),
+
             pipeline,
             camera_position_binding,
             view_matrix_binding,
-
-            start_time,
         }
     }
 
-    pub fn render(&mut self, surface_view: &wgpu::TextureView) {
-        let mut camera_position = Vec3 { x: 0f32, y: 16f32, z: 0f32 };
+    pub fn update(&mut self, events: &[Event]) {
+        //self.camera_position = Vec3 { x: 0f32, y: 16f32, z: 0f32 };
         //add our sin and cosines of time here
+        
+        let forward = self.view_matrix * cgmath::Vector4 { x: 0.0, y: 0.0, z: 1.0 , w: 0.0 };
+        let left    = self.view_matrix * cgmath::Vector4 { x: 1.0, y: 0.0, z: 0.0 , w: 0.0 };
+        
+        for event in events {
+            match event {
+                Event::KeyPressed(key) => {
+                    use winit::event::VirtualKeyCode;
+                    match key {
+                        VirtualKeyCode::S => self.camera_position = self.camera_position - Vec3::from(forward),
+                        VirtualKeyCode::W => self.camera_position = self.camera_position + Vec3::from(forward),
+                        VirtualKeyCode::A => self.camera_position = self.camera_position - Vec3::from(left),
+                        VirtualKeyCode::D => self.camera_position = self.camera_position + Vec3::from(left),
+                        VirtualKeyCode::J => self.camera_position.y -= 1.0,
+                        VirtualKeyCode::K => self.camera_position.y += 1.0,
+                        _ => {}
+                        
+                    }
+                },
+                Event::KeyReleased(_) => {},
+                Event::MousePressed((_, position)) => { self.last_press = *position; },
+                Event::MouseReleased((_, position)) => {
+                    //calculate our delta, change our camera angle based on this delta
+                    let delta = (position.0 - self.last_press.0, position.1 - self.last_press.1);
+                    //convert this delta into pixel space 
+                    //for now hard code with and height
+                    let width = 800.0;
+                    let height = 600.0;
+                    
+                    //this will make a drag to the very edge of the screen rotate you one quarter
+                    let y_rotation = delta.0 / (width / 2.0 ) * (std::f64::consts::PI / 4.0);
+                    let x_rotation = delta.1 / (height / 2.0) * (std::f64::consts::PI / 4.0);
 
-        let duration = ((self.start_time.elapsed().as_millis() % 20000) as f64 / 10000f64 * 2f64 * consts::PI) as f32;
-        camera_position.x -= 16f32 * duration.sin();
-        camera_position.z -= 16f32 * duration.cos();
+                    //do our rotation here
+                    self.view_matrix = self.view_matrix *
+                        cgmath::Matrix4::from_angle_y(cgmath::Rad(y_rotation as f32)) * 
+                        cgmath::Matrix4::from_angle_x(cgmath::Rad(x_rotation as f32));
+                },
+                Event::CursorMoved(_) => {},
+                _ => {}
+            }
 
-        //let view_angle = 
+        } 
+
+        //let duration = ((self.start_time.elapsed().as_millis() % 20000) as f64 / 10000f64 * 2f64 * consts::PI) as f32;
+        //self.camera_position.x -= 16f32 * duration.sin();
+        //self.camera_position.z -= 16f32 * duration.cos();
+
         //let view_matrix = cgmath::Matrix4::look_at_rh(camera_position.into(), look_at.into(), cgmath::Vector3 { x: 0f32, y: 1f32, z: 0f32 });
-        let view_matrix = cgmath::Matrix4::from_angle_y(cgmath::Rad::<f32>(duration));
-        let view_matrix_data: [[f32; 4]; 4] = view_matrix.into();
+        //self.view_matrix = cgmath::Matrix4::from_angle_y(cgmath::Rad::<f32>(duration));
+    }
 
-        //println!("{:?}, {:?}", camera_position, view_direction);
+    pub fn render(&mut self, surface_view: &wgpu::TextureView) {
+        let view_matrix_data: [[f32; 4]; 4] = self.view_matrix.into();
 
-        self.pipeline.shader().set_uniform(&self.camera_position_binding, camera_position);
-        self.pipeline.shader().set_uniform(&self.view_matrix_binding, view_matrix_data);
+        self.pipeline.shader().set_uniform(&self.camera_position_binding, self.camera_position).unwrap();
+        self.pipeline.shader().set_uniform(&self.view_matrix_binding, view_matrix_data).unwrap();
 
 
         self.pipeline.render(surface_view);
