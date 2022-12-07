@@ -7,6 +7,7 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     for _ in 0..10 {
         connection.send_packet()?;
+        std::thread::sleep(std::time::Duration::from_millis(5));
         
         //if connection.poll_packet()? {
             connection.receive_packets()?;

@@ -83,7 +83,7 @@ impl Connection {
         let mut packet = Packet { seq: self.sequence, ack: self.ack, acks: self.acks };
         let packet_bytes = &*unsafe { to_bytes(&mut packet) };
         self.socket.send_to(packet_bytes, self.client_address)?;
-        println!("Sending packet: {:?}", packet);
+        println!("Sending packet: {:?}, acks {1:b}", packet, self.acks);
         
         self.sequence += 1;
 
@@ -138,7 +138,7 @@ impl Connection {
             let index = packet.seq as usize % BUFFER_SIZE;
 
             //add this packet to our received packets
-            if packet.seq > self.ack {
+            if packet.seq >= self.ack {
                 self.ack = packet.seq;
                 //ack our packet here
                 self.received_packets[index] = (packet, true);
@@ -146,8 +146,9 @@ impl Connection {
                 //if we haven't already received this packet add it
                  
             }
+            
             //potentially slow to do this here in this way, but update our 32 bit ack mask
-            for b in (0u32..32u32).rev() {
+            for b in 0u32..32u32 {
                 let ack = self.ack as i32 - b as i32;
                 if ack < 0 { break } //if we're just starting only try to ack packets >= zero
                 let ack = ack as u16;
@@ -156,7 +157,7 @@ impl Connection {
                 let index = ack as usize % BUFFER_SIZE;
                 if self.received_packets[index].0.seq == ack && self.received_packets[index].1 {
                     //set the bit in our acks field
-                    self.acks |= 1 >> b;
+                    self.acks |= 1 << b;
                 }
             }
         };
