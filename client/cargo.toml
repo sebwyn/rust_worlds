@@ -1,0 +1,9 @@
+#this will end up being a pure library
+
+[package]
+name = "client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.reliable_udp]
+path = "../reliable_udp"

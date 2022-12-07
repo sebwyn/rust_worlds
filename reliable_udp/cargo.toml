@@ -1,0 +1,11 @@
+[package]
+name = "reliable_udp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+regex = "1"
+
+[lib]
+name = "reliable_udp"
+path = "src/lib.rs"
