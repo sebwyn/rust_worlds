@@ -32,9 +32,14 @@ fn main() -> Result<(), Box<dyn Error>>{
 
     connection.fake_packet_loss(0.2);
 
-    for i in 0..10 {
-        let msg_string = format!("Hello server {}", i);
-        connection.send_packet(Message::from(msg_string.as_str()))?;
+    loop {
+        //wait for input
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+
+        if input == "quit" { break }
+
+        connection.send_packet(Message::from(input.as_str()))?;
         std::thread::sleep(std::time::Duration::from_millis(5));
         
         //try to receive packets here

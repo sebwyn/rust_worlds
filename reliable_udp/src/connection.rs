@@ -158,19 +158,24 @@ where
             self.received_packets[index] = (packet, true);
         }
         
+        //no chance we actually have to rebuild this everytime we receive a packet
+        //but this is a good template
         //potentially slow to do this here in this way, but update our 32 bit ack mask
-        for b in 0u32..32u32 {
+        self.acks = 0u32;
+        for b in 0u16..32u16 {
             let ack = self.ack as i32 - b as i32;
-            if ack < 0 { break } //if we're just starting only try to ack packets >= zero
-            let ack = ack as u16;
+
+            let ack: u16 = match ack.try_into() {
+                Ok(i) => i,
+                Err(_) => break
+            };
+
             
-            let ack_bit = 1 << (self.ack % 32);
             //get packet from received packets here
             let index = ack as usize % BUFFER_SIZE;
             if self.received_packets[index].0.seq == ack && self.received_packets[index].1 {
                 //set the bit in our acks field
-                println!("Acking {}", ack);
-                self.acks |= ack_bit >> b;
+                self.acks |= 1 << b; 
             }
         }
 
