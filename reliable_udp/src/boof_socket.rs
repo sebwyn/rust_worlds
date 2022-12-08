@@ -10,6 +10,12 @@ pub struct BoofSocket {
     rand: random::Default,
 }
 
+impl std::fmt::Debug for BoofSocket {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BoofSocket").field("socket", &self.socket).field("packet_loss_freq", &self.packet_loss_freq).field("latency", &self.latency).finish()
+    }
+}
+
 impl BoofSocket {
     pub fn set_latency(&mut self, ms: u32) {
         self.latency = ms;
@@ -18,6 +24,8 @@ impl BoofSocket {
     pub fn set_packet_loss_freq(&mut self, percent: f64){
         self.packet_loss_freq = percent;
     }
+
+    pub fn socket(&self) -> &UdpSocket { &self.socket }
 }
 
 impl BoofSocket {

@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies.reliable_udp]
 path = "../reliable_udp"
+
+[dependencies.app]
+path = "../app"

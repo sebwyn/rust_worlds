@@ -1,36 +1,31 @@
-use std::error::Error;
+//this is essentially a test of clients talking to servers, the actual client will be far more
+//complex
+use std::{error::Error, net::{SocketAddr, UdpSocket}};
+
+use app::{Message, HandShake};
 
 use reliable_udp::{Connection, ipv4_from_str};
 
-#[allow(dead_code)]
-#[derive(Clone, Copy, Debug)]
-struct Message {
-    bytes: [u8; 100]
-}
-
-impl Default for Message {
-    fn default() -> Self {
-        Self { bytes: [0u8; 100] }
-    }
-}
-
-impl From<&str> for Message {
-    fn from(message: &str) -> Self {
-        let mut bytes = [0u8; 100];
-        bytes[..message.len()].copy_from_slice(message.as_bytes());
-
-        Self {
-            bytes
-        }
-    }
-}
-
-
-
 fn main() -> Result<(), Box<dyn Error>>{
-    let mut connection = Connection::<Message>::new(1234, ipv4_from_str("127.0.0.1")?, 1337)?;
+    //open a connection
+    let local_address = SocketAddr::new(ipv4_from_str("127.0.0.1")?, 0);
+    let mut server_address = SocketAddr::new(ipv4_from_str("127.0.0.1")?, app::SERVER_ROUTER_PORT);
+    
+    let (hand_shake, port): (HandShake, u16) = {
+        let hand_shake_socket = UdpSocket::bind(local_address)?;
+        hand_shake_socket.send_to(&Message::from("").bytes, server_address)?;
 
-    connection.fake_packet_loss(0.2);
+        let mut hand_shake_buffer = [0u8; app::MAX_PACKET_SIZE];
+        hand_shake_socket.recv_from(&mut hand_shake_buffer)?;
+        
+        let port = hand_shake_socket.local_addr()?.port();
+
+        (app::deserialize(&hand_shake_buffer).expect("Couldn't deserialize handshake"), port)
+    };
+    
+    server_address.set_port(hand_shake.port);
+    let (mut connection, _) = Connection::<Message>::new(server_address, Some(port))?;
+    //connection.fake_packet_loss(0.2);
 
     loop {
         //wait for input

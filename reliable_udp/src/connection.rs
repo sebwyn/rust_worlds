@@ -16,21 +16,6 @@ struct Packet<PayLoad> {
 
 const BUFFER_SIZE: usize = 1024;
 
-//a connection merely implements the raw reliable udp interface, packet definitions are up to you!
-pub struct Connection<PayLoad> {
-    sequence: u16,
-    ack: u16,
-    acks: u32,
-
-    _host_address: SocketAddr,
-    client_address: SocketAddr,
-
-    //packet and whether its been acked
-    sent_packets: [(Packet<PayLoad>, bool); BUFFER_SIZE],
-    received_packets: [(Packet<PayLoad>, bool); BUFFER_SIZE],
-
-    socket: BoofSocket,
-}
 
 #[derive(Debug)]
 struct ErrorWithMessage(&'static str);
@@ -41,6 +26,7 @@ impl std::fmt::Display for ErrorWithMessage {
     }
 }
 impl Error for ErrorWithMessage { }
+
 
 pub fn ipv4_from_str(ip: &str) -> Result<IpAddr, Box<dyn Error>> {
     let regex = Regex::new(r"^(?P<a>\d+)\.(?P<b>\d+)\.(?P<c>\d+)\.(?P<d>\d+)$")?;
@@ -53,24 +39,50 @@ pub fn ipv4_from_str(ip: &str) -> Result<IpAddr, Box<dyn Error>> {
 
     Ok(IpAddr::V4(Ipv4Addr::new(a, b, c, d)))
 }
+//
+//a connection merely implements the raw reliable udp interface, packet definitions are up to you!
+#[derive(Debug)]
+pub struct Connection<PayLoad> {
+    sequence: u16,
+    ack: u16,
+    acks: u32,
+
+
+    //packet and whether its been acked
+    sent_packets: Vec<(Packet<PayLoad>, bool)>,//[(Packet<PayLoad>, bool); BUFFER_SIZE],
+    received_packets: Vec<(Packet<PayLoad>, bool)>,//[(Packet<PayLoad>, bool); BUFFER_SIZE],
+
+    _host_address: SocketAddr,
+    client_address: SocketAddr,
+    socket: BoofSocket,
+}
+
+impl<P> Connection<P> {
+    pub fn client_address(&self) -> SocketAddr { self.client_address }
+}
 
 impl<PayLoad> Connection<PayLoad> 
 where
     PayLoad: std::default::Default + std::marker::Copy + std::fmt::Debug
 {
     //can specify zero here if the port is irrelevant
-    pub fn new(host_port: u16, client_ip: IpAddr, client_port: u16) -> Result<Self, Box<dyn Error>> 
+    pub fn new(client_address: SocketAddr, port: Option<u16>) -> Result<(Self, u16), Box<dyn Error>> 
     {
         //make our connection here    
-        let host_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), host_port);
+        let host_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port.unwrap_or(0));
         let socket = BoofSocket::bind(host_address)?;
-
-        let client_address = SocketAddr::new(client_ip, client_port);
 
         //socket.set_nonblocking(true)?;
         socket.set_read_timeout(Some(Duration::from_nanos(10)))?;
 
-        Ok(Self {
+        let port = socket.socket().local_addr()?.port();
+
+        let mut sent_packets = Vec::new();
+        sent_packets.resize(BUFFER_SIZE, (Packet::default(), false));
+        let mut received_packets = Vec::new();
+        received_packets.resize(BUFFER_SIZE, (Packet::default(), false));
+
+        Ok((Self {
             sequence: 0,
             ack: 0,
             acks: 0,
@@ -78,11 +90,11 @@ where
             _host_address: host_address,
             client_address,
 
-            sent_packets: [(Packet::<PayLoad>::default(), false); BUFFER_SIZE],
-            received_packets: [(Packet::<PayLoad>::default(), false); BUFFER_SIZE],
+            sent_packets, 
+            received_packets,
 
             socket,
-        })
+        }, port))
     }
 
     pub fn fake_packet_loss(&mut self, percent: f64){
@@ -170,7 +182,6 @@ where
                 Err(_) => break
             };
 
-            
             //get packet from received packets here
             let index = ack as usize % BUFFER_SIZE;
             if self.received_packets[index].0.seq == ack && self.received_packets[index].1 {
