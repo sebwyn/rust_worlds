@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 regex = "1"
+random = "0.13"
 
 [lib]
 name = "reliable_udp"

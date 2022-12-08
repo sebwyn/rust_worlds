@@ -2,16 +2,43 @@ use std::error::Error;
 
 use reliable_udp::{Connection, ipv4_from_str};
 
-fn main() -> Result<(), Box<dyn Error>>{
-    let mut connection = Connection::new(1234, ipv4_from_str("127.0.0.1")?, 1337)?;
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug)]
+struct Message {
+    bytes: [u8; 100]
+}
 
-    for _ in 0..10 {
-        connection.send_packet()?;
+impl Default for Message {
+    fn default() -> Self {
+        Self { bytes: [0u8; 100] }
+    }
+}
+
+impl From<&str> for Message {
+    fn from(message: &str) -> Self {
+        let mut bytes = [0u8; 100];
+        bytes[..message.len()].copy_from_slice(message.as_bytes());
+
+        Self {
+            bytes
+        }
+    }
+}
+
+
+
+fn main() -> Result<(), Box<dyn Error>>{
+    let mut connection = Connection::<Message>::new(1234, ipv4_from_str("127.0.0.1")?, 1337)?;
+
+    connection.fake_packet_loss(0.2);
+
+    for i in 0..10 {
+        let msg_string = format!("Hello server {}", i);
+        connection.send_packet(Message::from(msg_string.as_str()))?;
         std::thread::sleep(std::time::Duration::from_millis(5));
         
-        //if connection.poll_packet()? {
-            connection.receive_packets()?;
-        //}
+        //try to receive packets here
+        connection.receive_packet()?;
     }
 
     Ok(())
