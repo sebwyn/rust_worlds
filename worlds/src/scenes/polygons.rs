@@ -13,7 +13,7 @@ use crate::core::Window;
 use std::rc::Rc;
 
 //define a vert that just has a position
-pub use crate::graphics::wgsl_types::{Vec2, Vec3};
+pub use crate::graphics::wgsl_types::Vec3;
 
 use super::shared::Camera;
 
@@ -86,7 +86,9 @@ impl Polygons {
                     clear_color: Some([0f64; 4]),
                     attachment: Attachment::Swapchain,
                 }],
-                shader: &ShaderDescriptor { file: "shaders/polygons.wgsl" },
+                shader: &ShaderDescriptor {
+                    file: "shaders/polygons.wgsl",
+                },
                 primitive: RenderPrimitive::Triangles,
             });
 

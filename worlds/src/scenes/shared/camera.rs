@@ -103,6 +103,7 @@ impl Camera {
                             //toggle rotation
                             self.rotation_enabled = !self.rotation_enabled;
 
+                            self.window.winit_window().set_cursor_visible(!self.rotation_enabled);
                             if self.rotation_enabled {
                                 self.window
                                     .winit_window()

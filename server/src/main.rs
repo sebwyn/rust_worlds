@@ -5,5 +5,5 @@ use std::error::Error;
 use server::Server;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    Server::default().run()
+    Server::new(30).run()
 }

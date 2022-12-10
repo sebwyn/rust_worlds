@@ -1,65 +1,104 @@
-use std::{error::Error,  net::{SocketAddr, UdpSocket}, thread::JoinHandle};
-use reliable_udp::Connection;
+use std::{error::Error,  net::{SocketAddr, UdpSocket}, sync::{Arc, Mutex}, time::Duration};
+use reliable_udp::Agent;
 
-use app::{Message, HandShake};
+use app::HandShake;
 
 //think about tokio for dealing with all these threads
-#[derive(Default)]
 pub struct Server {
-    connections: Vec<(SocketAddr, JoinHandle<()>)>,
+    connections: Arc<Mutex<Vec<(SocketAddr, Agent<Vec<String>, String>)>>>,
+    tick_rate: u64,
 }
 
 impl Server {
+    pub fn new(tick_rate: u64) -> Self {
+        Self {
+            connections: Arc::new(Mutex::new(Vec::new())),
+            tick_rate 
+        } 
+    }
+
     //think about using tcp for routing, and handshaking
     pub fn run(&mut self) -> Result<(), Box<dyn Error>>  {
+        {
+            let connections = self.connections.clone();
+            std::thread::spawn(|| { Self::listen_thread(connections) });
+        }
 
-        let router = UdpSocket::bind("127.0.0.1:6669")?;
+        let wait_time = 1000u64 / self.tick_rate; //in milliseconds
+        
+        loop { 
+            self.close_stale_connections();
+            let mut new_messages: Vec<(SocketAddr, String)> = self.get_client_messages(); 
+
+            //update our world (modify our messages, so they look better)
+            new_messages = new_messages.into_iter().map(|(addr, message)| {
+                (
+                    addr, 
+                    format!("[{:?}]: {}", addr.to_string(), message)
+                )
+            }).collect();
+             
+            
+            self.send_clients_messages(new_messages);
+
+            std::thread::sleep(Duration::from_millis(wait_time));
+        }
+
+        //Ok(())
+    }
+
+    fn close_stale_connections(&mut self) {
+        let mut clients = self.connections.lock().unwrap();
+
+        clients.retain(|(_addr, agent)| {
+            !agent.lost_connection()
+        });
+    }
+
+    //loop and update our clients based on input
+    fn get_client_messages(&mut self) -> Vec<(SocketAddr, String)> {
+        let clients = self.connections.lock().unwrap();
+
+        clients.iter().map(|client| {
+            client.1.get_messages().into_iter().map(|m| (client.0, m))
+        }).flatten().collect()
+    }
+
+    //send a message to our clients with the updated world state 
+    fn send_clients_messages(&self, messages: Vec<(SocketAddr, String)>) {
+        let clients = self.connections.lock().unwrap();
+
+        for client in clients.iter() {
+            //send a vector of messages excluding messages from this client
+            let others_messages: Vec<String> = messages.iter().filter_map(|(addr, message)| {
+                if *addr != client.0 { Some(message.clone()) } else { None }
+            }).collect();
+
+            if others_messages.len() > 0 {
+                client.1.send_message(others_messages);
+            }
+        }
+}
+
+    fn listen_thread(connections: Arc<Mutex<Vec<(SocketAddr, Agent<Vec<String>, String>)>>>) {
+        let router = UdpSocket::bind("127.0.0.1:6669").expect("Failed to open listen thread");
 
         //I'm assuming each send gets mapped to one recv, but idk, who knows, we'll find out
         let mut big_packet_buffer = vec![0u8; app::MAX_PACKET_SIZE];
 
-        //this will be a blocking recv_from
         loop {
-            let (_packet, client) = router.recv_from(&mut big_packet_buffer).expect("The server failed to receive? Dead??");
+            let (_packet, client) = router.recv_from(&mut big_packet_buffer).expect("The server router failed to receive? Dead?");
 
-            if let Ok((connection, port)) = Connection::<app::Message>::new(client, None) {
-                let hand_shake = HandShake::new(port);
+            if let Ok(agent) = Agent::start(None, &client.ip().to_string(), client.port()) {
+                let hand_shake = HandShake::new(agent.port());
                 //send this client a packet back with the port of the connection
-                router.send_to(app::serialize(hand_shake).as_slice(), client).expect("Failed to send hand_shake??");
-
-                let join_handle = std::thread::spawn(move || { 
-                    Self::maintain_connection(connection) 
-                });
+                router.send_to(app::serialize(&hand_shake).unwrap().as_slice(), client).expect("Failed to send hand_shake?");
 
                 //create a connection and spawn a thread to manage it
-                self.connections.push((client, join_handle))
-            }
-        }
-
-    }
-
-    pub fn maintain_connection(mut connection: Connection<Message>) {
-        loop {
-            let message = match connection.receive_packet() {
-                Ok(m) => m,
-                Err(_) => break, //kill this thread if we had a receive error
-            };
-            if let Some(message) = message {
-                //decode the message here
-                let string_message = match String::from_utf8(message.bytes.to_vec()) {
-                    Ok(sm) => sm,
-                    Err(_) => continue,
-                };
-                println!("{}", string_message);
-
-                //ack packets manually, if we fail to send on the connection also quit, we got
-                //disconnected
-                //connection.send_packet(Message::from(""))?;
-                match connection.send_packet(Message::from("")) {
-                    Ok(m) => m,
-                    Err(_) => break, //kill this thread if we had a receive error
-                };
+                let mut conns = connections.lock().unwrap();
+                conns.push((client, agent))
             }
         }
     }
 }
+

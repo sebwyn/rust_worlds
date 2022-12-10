@@ -5,6 +5,10 @@ name = "client"
 version = "0.1.0"
 edition = "2021"
 
+[dependencies]
+serde = {version = "1.0.149", features = ["derive"] }
+bincode = "1.3.3"
+
 [dependencies.reliable_udp]
 path = "../reliable_udp"
 
