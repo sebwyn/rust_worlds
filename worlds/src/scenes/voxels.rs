@@ -8,6 +8,7 @@ use crate::core::Window;
 use crate::core::Event;
 
 use std::rc::Rc;
+use cgmath::SquareMatrix;
 use rayon::prelude::*;
 
 //define a vert that just has a position
@@ -151,7 +152,9 @@ impl Scene for Voxels {
     }
 
     fn render(&mut self, surface_view: &wgpu::TextureView) {
-        let view_matrix_data: [[f32; 4]; 4] = (*self.camera.view_matrix()).into();
+        let mut transposed_view_matrix = self.camera.view_matrix().clone();
+        transposed_view_matrix.transpose_self(); 
+        let view_matrix_data: [[f32; 4]; 4] = transposed_view_matrix.into();
 
         self.pipeline.shader().set_uniform(&self.camera_position_binding, *self.camera.position()).unwrap();
         self.pipeline.shader().set_uniform(&self.view_matrix_binding, view_matrix_data).unwrap();

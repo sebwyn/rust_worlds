@@ -74,8 +74,8 @@ impl App {
         let current_texture = self.api.surface().get_current_texture().unwrap();
         let current_texture_view = current_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        // self.voxels.render(&current_texture_view);
-        self.polygons.render(&current_texture_view);
+        self.voxels.render(&current_texture_view);
+        // self.polygons.render(&current_texture_view);
 
         current_texture.present();
     }

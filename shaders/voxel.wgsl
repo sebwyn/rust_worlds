@@ -46,7 +46,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     //var p = (in.position.xy - resolution / 2.0) / 100.0;
     var p = (in.position.xy - resolution / 2.0) / (resolution / 2.0);
     p.y = -1.0 * p.y;
-    let screen_world = vec3<f32>(p, near);
+    let screen_world = vec3<f32>(p, -near);
     let mag = length(vec3<f32>(p, near));
 
     //figure out our ray from the postion and camera position, for now assuming the camera points towards positive z (near is positive)
