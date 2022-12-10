@@ -9,11 +9,12 @@ use crate::core::Event;
 
 use std::rc::Rc;
 use rayon::prelude::*;
-use cgmath::One;
 
 //define a vert that just has a position
 use crate::graphics::Vertex;
 pub use crate::graphics::wgsl_types::{Vec2, Vec3};
+
+use super::shared::Camera;
 
 fn to_byte_slice(uints: & [u32]) -> &[u8] {
     unsafe {
@@ -49,14 +50,7 @@ struct Voxel {
 
 pub struct Voxels {
     //logic stuff
-    camera_position: Vec3,
-
-    rotation_enabled: bool,
-    //update this with shit
-    y_rotation: f32,
-    x_rotation: f32,
-    view_matrix: cgmath::Matrix4<f32>,
-    window: Rc<Window>,
+    camera: Camera,
 
     //rendering stuff
     pipeline: RenderPipeline,
@@ -98,7 +92,7 @@ impl Voxels {
                 }
             ], 
             shader: &ShaderDescriptor {
-                file: "voxel.wgsl",
+                file: "shaders/voxel.wgsl",
             }, 
             primitive: RenderPrimitive::Triangles,
         });
@@ -138,15 +132,10 @@ impl Voxels {
         let camera_position_binding = pipeline.shader().get_uniform_binding("camera_position").expect("Can't find near camera position uniform in voxel shader!");
         let view_matrix_binding = pipeline.shader().get_uniform_binding("view_matrix").expect("Can't find near view direction uniform in voxel shader!");
 
+        let camera = Camera::new(window);
+
         Self {
-            camera_position: Vec3 { x: 0f32, y: 0f32, z: 0f32 },
-
-            rotation_enabled: false,
-            x_rotation: 0f32,
-            y_rotation: 0f32,
-            view_matrix: cgmath::Matrix4::one(),
-            window,
-
+            camera,
             pipeline,
             camera_position_binding,
             view_matrix_binding,
@@ -158,81 +147,16 @@ impl Voxels {
 impl Scene for Voxels {
     //this update just serves as a camera controller right now
     fn update(&mut self, events: &[Event]) {
-        //self.camera_position = Vec3 { x: 0f32, y: 16f32, z: 0f32 };
-        //add our sin and cosines of time here
-        
-        let forward = self.view_matrix * cgmath::Vector4 { x: 0.0, y: 0.0, z: 1.0 , w: 0.0 };
-        let left    = self.view_matrix * cgmath::Vector4 { x: 1.0, y: 0.0, z: 0.0 , w: 0.0 };
-
-        let half_width = self.window.size().0 as f64 / 2.0;
-        let half_height = self.window.size().1 as f64 / 2.0;
-        
-        for event in events {
-            match event {
-                Event::KeyPressed(key) => {
-                    use winit::event::VirtualKeyCode;
-                    match key {
-                        VirtualKeyCode::S => self.camera_position = self.camera_position - Vec3::from(forward),
-                        VirtualKeyCode::W => self.camera_position = self.camera_position + Vec3::from(forward),
-                        VirtualKeyCode::A => self.camera_position = self.camera_position - Vec3::from(left),
-                        VirtualKeyCode::D => self.camera_position = self.camera_position + Vec3::from(left),
-                        VirtualKeyCode::J => self.camera_position.y -= 1.0,
-                        VirtualKeyCode::K => self.camera_position.y += 1.0,
-                        VirtualKeyCode::E => {
-                            //toggle rotation
-                            self.rotation_enabled = !self.rotation_enabled;
-
-                            if self.rotation_enabled {
-                                self.window.winit_window()
-                                    .set_cursor_position(Into::<winit::dpi::PhysicalPosition<f64>>::into(
-                                            (half_width, half_height)
-                                    ))
-                                    .unwrap();
-                            }
-                        },
-                        _ => {}
-                        
-                    }
-                },
-                Event::KeyReleased(_) => {},
-                Event::MousePressed((_, _position)) => {},
-                Event::MouseReleased((_, _position)) => {},
-                Event::CursorMoved(position) if self.rotation_enabled => {
-                    //because cursor grab mode is set we can set cursor position and go from there
-                    //do our cursor math here 
-                    let delta = (position.0 - half_width, position.1 - half_height);
-                    
-                    //add some angle to our current rotation
-                    self.y_rotation += (delta.0 / half_width) as f32;
-                    self.x_rotation += (delta.1 / half_height) as f32;
-                    self.x_rotation = self.x_rotation.signum() * f32::min(self.x_rotation.abs(), 1.5);
-
-                    //do our rotation here
-                    self.view_matrix =
-                        cgmath::Matrix4::from_angle_y(cgmath::Rad(self.y_rotation)) * 
-                        cgmath::Matrix4::from_angle_x(cgmath::Rad(self.x_rotation));
-                    
-                    self.window.winit_window()
-                        .set_cursor_position(Into::<winit::dpi::PhysicalPosition<f64>>::into(
-                                (half_width, half_height)
-                        ))
-                        .unwrap();
-                },
-                _ => {}
-            }
-
-        } 
+        self.camera.update(events);
     }
 
     fn render(&mut self, surface_view: &wgpu::TextureView) {
-        let view_matrix_data: [[f32; 4]; 4] = self.view_matrix.into();
+        let view_matrix_data: [[f32; 4]; 4] = (*self.camera.view_matrix()).into();
 
-        self.pipeline.shader().set_uniform(&self.camera_position_binding, self.camera_position).unwrap();
+        self.pipeline.shader().set_uniform(&self.camera_position_binding, *self.camera.position()).unwrap();
         self.pipeline.shader().set_uniform(&self.view_matrix_binding, view_matrix_data).unwrap();
 
 
         self.pipeline.render(surface_view);
     }
-
-
 }

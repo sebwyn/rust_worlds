@@ -27,7 +27,6 @@ impl Server {
                 //send this client a packet back with the port of the connection
                 router.send_to(app::serialize(hand_shake).as_slice(), client).expect("Failed to send hand_shake??");
 
-                println!("Creating a thread to handle this: {:?}", connection);
                 let join_handle = std::thread::spawn(move || { 
                     Self::maintain_connection(connection) 
                 });
@@ -40,8 +39,6 @@ impl Server {
     }
 
     pub fn maintain_connection(mut connection: Connection<Message>) {
-        println!("Maintaining a connection with: {}", connection.client_address());
-
         loop {
             let message = match connection.receive_packet() {
                 Ok(m) => m,

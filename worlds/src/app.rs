@@ -3,6 +3,7 @@ use crate::graphics::RenderApi;
 use crate::core::{Window, EventSystem, Scene};
 
 use crate::Voxels;
+use crate::scenes::Polygons;
 
 use std::{time::Instant, rc::Rc};
 use winit::{event_loop::ControlFlow, event::{WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, Event}};
@@ -18,6 +19,7 @@ pub struct App {
 
     events: EventSystem,
     voxels: Voxels,
+    polygons: Polygons,
 }
 
 impl App {
@@ -35,6 +37,7 @@ impl App {
 
         //initialize our scene
         let voxels = Voxels::new(window.clone(), &api, width, height);
+        let polygons = Polygons::new(window.clone(), &api);
 
         let last_frame = Instant::now();
 
@@ -48,11 +51,13 @@ impl App {
 
             events,
             voxels,
+            polygons,
         }
     }
 
     pub fn update(&mut self) {
         let events = self.events.emit();
+        self.polygons.update(&events);
         self.voxels.update(&events);
     }
 
@@ -69,7 +74,8 @@ impl App {
         let current_texture = self.api.surface().get_current_texture().unwrap();
         let current_texture_view = current_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
-        self.voxels.render(&current_texture_view);
+        // self.voxels.render(&current_texture_view);
+        self.polygons.render(&current_texture_view);
 
         current_texture.present();
     }

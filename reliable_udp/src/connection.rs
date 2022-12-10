@@ -131,9 +131,15 @@ where
             Err(e) => return Err(Box::new(e))
         };
         assert!(from == self.client_address, "Connection is trying to receive from the wrong client!");
-
-        //println!("Received packet from {:?}: {:?}", from, packet);
         
+        //get an index into our received packets at this packets location
+        let index = packet.seq as usize % BUFFER_SIZE;
+
+        //catch a really old packet
+        if self.received_packets[index].0.seq > packet.seq {
+            return Ok(None);
+        }
+
         //mark packets acknowledged
         //s should align with the sequence number on our end that needs to be acked
         for b in (0u32..32u32).rev() {
@@ -150,15 +156,6 @@ where
             }
         }
 
-
-        //get an index into our received packets at this packets location
-        let index = packet.seq as usize % BUFFER_SIZE;
-
-        //catch a really old packet
-        if self.received_packets[index].0.seq > packet.seq {
-            return Ok(None);
-        }
-
         //add this packet to our received packets
         if packet.seq >= self.ack {
             self.ack = packet.seq;
@@ -172,7 +169,6 @@ where
         
         //no chance we actually have to rebuild this everytime we receive a packet
         //but this is a good template
-        //potentially slow to do this here in this way, but update our 32 bit ack mask
         self.acks = 0u32;
         for b in 0u16..32u16 {
             let ack = self.ack as i32 - b as i32;

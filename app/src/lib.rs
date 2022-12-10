@@ -34,7 +34,6 @@ impl HandShake {
     }
 }
 
-
 #[derive(Clone, Copy, Debug)]
 pub struct Message {
     pub bytes: [u8; 100]

@@ -4,7 +4,7 @@ use std::path::Path;
 
 #[test]
 fn test_reflection() {
-    let file = Path::new("basic.wgsl");
+    let file = Path::new("shaders/basic.wgsl");
     let shader_source = std::fs::read_to_string(file).unwrap_or_else(|_| {
         panic!("Can't read shader file: basic.wgsl")
     });

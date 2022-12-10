@@ -95,3 +95,9 @@ impl From<cgmath::Vector4<f32>> for Vec3 {
         Vec3 { x: vec4.x, y: vec4.y, z: vec4.z }
     }
 }
+
+impl Into<cgmath::Vector3<f32>> for Vec3 {
+    fn into(self) -> cgmath::Vector3<f32> {
+        cgmath::Vector3 { x: self.x, y: self.y, z: self.z }
+    }
+}
