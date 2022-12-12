@@ -9,6 +9,12 @@ random = "0.13"
 serde = { version = "1.0.149", features = ["derive"] }
 bincode = "1.3.3"
 winit = { version = "0.27.5", features = ["serde"] }
+cgmath = "0.18.0"
+
+[features]
+default = ["client", "server"]
+server = []
+client = []
 
 [lib]
 name = "app"

@@ -1,4 +1,4 @@
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 
 pub fn serialize<T: Serialize>(value: &T) -> Option<Vec<u8>> {
     bincode::serialize(value)

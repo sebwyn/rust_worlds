@@ -1,5 +1,4 @@
-mod shared;
-use shared::Vert;
+mod components;
 
 mod voxels;
 pub use voxels::Voxels;

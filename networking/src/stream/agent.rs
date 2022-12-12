@@ -1,15 +1,11 @@
 use std::{error::Error, thread::JoinHandle, sync::mpsc, net::SocketAddr};
-use serde::{Deserialize, Serialize};
-use crate::{Connection, ipv4_from_str, serialization::{deserialize, serialize}};
+use serde::{Serialize, de::DeserializeOwned};
+use crate::{ipv4_from_str, serialization::{deserialize, serialize}};
+use super::Connection;
 
-pub enum AgentError { 
-    ThreadPanicked,
-    Io(std::io::Error),
-}
-
-
+//think about changing agent to support encoding then sending
 pub struct Agent<S, R> {
-    port: u16,
+    local_addr: SocketAddr,
     handle: Option<JoinHandle<Result<(), std::io::Error>>>,
 
     receiver: mpsc::Receiver<R>,
@@ -38,14 +34,15 @@ impl<S, R> Drop for Agent<S, R> {
 impl<S, R> Agent<S, R> 
 where
     S: Send + Sync + std::fmt::Debug + Serialize + 'static,
-    R: Send + Sync + std::fmt::Debug + for<'de> Deserialize<'de> + 'static,
+    R: Send + Sync + std::fmt::Debug + DeserializeOwned + 'static,
 {
-    pub fn port(&self) -> u16 { self.port }
+    pub fn local_addr(&self) -> SocketAddr { self.local_addr }
 
     pub fn start(host_port: Option<u16>, ip: &str, client_port: u16) -> Result<Self, Box<dyn Error>> {
 
         let client_addr = SocketAddr::new(ipv4_from_str(ip)?, client_port);
         let (connection, port) = Connection::new(client_addr, host_port)?;
+        let local_addr = SocketAddr::new(ipv4_from_str("127.0.0.1")?, port);
 
         let (thread_sender, receiver) = mpsc::channel::<R>();
         let (sender, thread_receiver) = mpsc::channel::<S>();
@@ -60,7 +57,7 @@ where
 
         
         Ok(Self {
-            port,
+            local_addr,
             handle,
             receiver,
             sender,
@@ -101,7 +98,7 @@ where
                 sender.send(message).expect("Thread connection was dropped before being joined");
 
                 //ack the packet
-                connection.send_bytes(&[])?;
+                //connection.send_bytes(&[])?;
             }
 
             //try and read a message and send it

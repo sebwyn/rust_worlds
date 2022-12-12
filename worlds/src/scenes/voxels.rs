@@ -9,13 +9,14 @@ use crate::core::Event;
 
 use std::rc::Rc;
 use cgmath::SquareMatrix;
+
 use rayon::prelude::*;
 
 //define a vert that just has a position
 use crate::graphics::Vertex;
 pub use crate::graphics::wgsl_types::{Vec2, Vec3};
 
-use super::shared::Camera;
+use super::components::Camera;
 
 fn to_byte_slice(uints: & [u32]) -> &[u8] {
     unsafe {

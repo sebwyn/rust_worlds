@@ -1,5 +1,5 @@
 [package]
-name = "reliable_udp"
+name = "networking"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,5 +10,5 @@ bincode = "1.3.3"
 serde = { version = "1.0.149", features = ["derive"] }
 
 [lib]
-name = "reliable_udp"
+name = "networking"
 path = "src/lib.rs"

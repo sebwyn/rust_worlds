@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use serde::{Serialize, Deserialize};
 use winit::event::{VirtualKeyCode, MouseButton};
 
@@ -5,7 +7,7 @@ use winit::event::{VirtualKeyCode, MouseButton};
 //this means that it will generate appropriate matrices and be able to perform raycasts
 //in order to generate matrices, we need to be aware of the client resolution
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum ClientEvent {
     //input events
     KeyPressed(VirtualKeyCode),
@@ -17,3 +19,32 @@ pub enum ClientEvent {
     //resolution changes, used to decode mouse events
     ScreenSizeChanged((f64, f64)),
 } 
+
+#[derive(Serialize, Deserialize)]
+pub struct HandShake {
+    pub port: u16,
+}
+
+impl HandShake {
+    pub fn new(port: u16) -> Self {
+        Self { port }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Transform {
+    pub position: [f32; 3],
+    pub rotation: [f32; 2]
+}
+
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub enum GameObject {
+    Player { 
+        addr: SocketAddr,
+        transform: Transform,
+    },
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct Snapshot(pub Vec<GameObject>);

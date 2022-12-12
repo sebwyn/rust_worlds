@@ -1,21 +1,22 @@
-//this is essentially a test of clients talking to servers, the actual client will be far more
-//complex
 use std::{
     error::Error,
-    net::{SocketAddr, UdpSocket}, mem::size_of, sync::mpsc,
+    net::{SocketAddr, UdpSocket}, mem::size_of,
 };
 
 use app::HandShake;
+use networking::{ipv4_from_str, stream::Agent};
+use serde::{Serialize, de::DeserializeOwned};
 
-use reliable_udp::{ipv4_from_str, Connection};
-
-pub fn open_connection(ip: &str) -> Result<(), Box<dyn Error>> {
-    //open a connection
-    let local_address = SocketAddr::new(ipv4_from_str("127.0.0.1")?, 0);
-    let mut server_address = SocketAddr::new(ipv4_from_str(ip)?, app::SERVER_ROUTER_PORT);
-
+pub fn open_connection<S, R>(ip: &str) -> Result<Agent<S, R>, Box<dyn Error>> 
+where
+    S: Send + Sync + std::fmt::Debug + Serialize + 'static,
+    R: Send + Sync + std::fmt::Debug + DeserializeOwned + 'static,
+{
     let (hand_shake, port): (HandShake, u16) = {
+        let local_address = SocketAddr::new(ipv4_from_str("127.0.0.1")?, 0);
         let hand_shake_socket = UdpSocket::bind(local_address)?;
+
+        let server_address = SocketAddr::new(ipv4_from_str(ip)?, app::SERVER_ROUTER_PORT);
         hand_shake_socket.send_to(&[], server_address).unwrap();
 
         let mut hand_shake_buffer = [0u8; size_of::<app::HandShake>()];
@@ -29,43 +30,5 @@ pub fn open_connection(ip: &str) -> Result<(), Box<dyn Error>> {
         )
     };
 
-    server_address.set_port(hand_shake.port);
-    let (mut connection, _) = Connection::new(server_address, Some(port))?;
-    //connection.fake_packet_loss(0.2);
-
-    let (tx, rx) = mpsc::channel::<String>();
-
-    std::thread::spawn(move || {
-        loop {
-            let mut input = String::new();
-            std::io::stdin().read_line(&mut input).unwrap();
-
-            if input == "quit" {
-                break;
-            }
-
-            let _result = tx.send(input);
-        }
-    });
-
-    loop {
-        //wait for input
-        if let Ok(input) = rx.try_recv() {
-            connection.send_bytes(&app::serialize(&input).unwrap())?;
-        }
-        //try to receive packets here
-        if let Some(bytes) = connection.receive_bytes()? {
-            //println!("Received bytes: {:?}", bytes);
-            if let Some(messages) = app::deserialize::<Vec<String>>(&bytes) {
-                //print all the messages we received
-                for message in messages {
-                    print!("{}", message);
-                }
-            }
-        }
-
-        std::thread::sleep(std::time::Duration::from_millis(5));
-    }
-
-    //Ok(())
+    Agent::start(Some(port), ip, hand_shake.port)
 }

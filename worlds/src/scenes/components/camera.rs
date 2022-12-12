@@ -4,7 +4,7 @@ use cgmath::{One, Point3, SquareMatrix, Vector3, Vector4};
 
 use crate::{
     core::{Event, Window},
-    graphics::wgsl_types::Vec3,
+    graphics::wgsl_types::{Vec3, Vec2},
 };
 
 pub struct Camera {
@@ -39,6 +39,9 @@ impl Camera {
     }
     pub fn position(&self) -> &Vec3 {
         &self.position
+    }
+    pub fn rotation(&self) -> Vec2 {
+        Vec2 { x: self.x_rotation, y: self.y_rotation }
     }
 }
 
@@ -77,6 +80,7 @@ impl Camera {
                 z: -1.0,
                 w:  0.0,
             };
+
         let left = self.speed * transposed_view
             * cgmath::Vector4 {
                 x: 1.0,
@@ -150,13 +154,14 @@ impl Camera {
             //TODO: only do this if we get input
 
             let unit = Vector3 {
-                x: 0f32,
-                y: 0f32,
-                z: 1f32,
+                x:  0f32,
+                y:  0f32,
+                z: -1f32,
             };
 
-            let rotation_matrix = cgmath::Matrix4::from_angle_y(cgmath::Rad(-self.y_rotation))
-                * cgmath::Matrix4::from_angle_x(cgmath::Rad(self.x_rotation));
+            let rotation_matrix = 
+                  cgmath::Matrix4::from_angle_y(cgmath::Rad(-self.y_rotation))
+                * cgmath::Matrix4::from_angle_x(cgmath::Rad(-self.x_rotation));
 
             let rotated_unit = rotation_matrix * Vector4::new(unit.x, unit.y, unit.z, 0.0);
             let position: Vector3<f32> = self.position.into();

@@ -3,9 +3,9 @@ extern crate bitflags;
 
 mod core;
 mod graphics;
-mod app;
 
 mod scenes;
 use scenes::Voxels;
 
-pub use app::App;
+mod worlds;
+pub use worlds::App;

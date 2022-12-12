@@ -6,8 +6,9 @@ edition = "2021"
 [dependencies]
 ciborium = "0.2.0"
 
-[dependencies.reliable_udp]
-path = "../reliable_udp"
+[dependencies.networking]
+path = "../networking"
 
 [dependencies.app]
 path = "../app"
+features = ["server"]

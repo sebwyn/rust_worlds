@@ -3,8 +3,6 @@ use crate::{BoofSocket, serialization::{serialize, deserialize, serialized_size}
 use std::{net::{IpAddr, SocketAddr, Ipv4Addr}, error::Error, time::Duration};
 use serde::{Serialize, Deserialize};
 
-use regex::Regex;
-
 #[derive(Serialize, Deserialize, Default, Debug, Copy, Clone)]
 pub struct Header {
     seq: u16,
@@ -14,36 +12,12 @@ pub struct Header {
 
 const BUFFER_SIZE: usize = 1024;
 
-#[derive(Debug)]
-struct ErrorWithMessage(&'static str);
-
-impl std::fmt::Display for ErrorWithMessage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.0)
-    }
-}
-impl Error for ErrorWithMessage { }
-
-
-pub fn ipv4_from_str(ip: &str) -> Result<IpAddr, Box<dyn Error>> {
-    let regex = Regex::new(r"^(?P<a>\d+)\.(?P<b>\d+)\.(?P<c>\d+)\.(?P<d>\d+)$")?;
-    let captures = regex.captures(ip).ok_or(ErrorWithMessage("Invalid ipv4 string"))?;
-    let a = captures.name("a").ok_or(ErrorWithMessage("Invalid ipv4 string"))?.as_str().parse::<u8>()?;
-    let b = captures.name("b").ok_or(ErrorWithMessage("Invalid ipv4 string"))?.as_str().parse::<u8>()?;
-    let c = captures.name("c").ok_or(ErrorWithMessage("Invalid ipv4 string"))?.as_str().parse::<u8>()?;
-    let d = captures.name("d").ok_or(ErrorWithMessage("Invalid ipv4 string"))?.as_str().parse::<u8>()?;
-
-
-    Ok(IpAddr::V4(Ipv4Addr::new(a, b, c, d)))
-}
-//
 //a connection merely implements the raw reliable udp interface, packet definitions are up to you!
 #[derive(Debug)]
 pub struct Connection {
     sequence: u16,
     ack: u16,
     acks: u32,
-
 
     //packet and whether its been acked
     sent_headers: Vec<(Header, bool)>,//[(Packet<PayLoad>, bool); BUFFER_SIZE],
@@ -110,7 +84,7 @@ impl Connection {
         self.socket.send_to(&packet_bytes, self.client_address)?;
         //println!("Sending packet: ack: {} acks {1:#032b}", self.ack, self.acks);
         
-        self.sequence += 1;
+        self.sequence = self.sequence.wrapping_add(1);
 
         Ok(())
     }
@@ -132,16 +106,13 @@ impl Connection {
         let header = deserialize::<Header>(&max_packet_buffer).unwrap();
         let header_size = serialized_size(&header).unwrap() as usize;
 
-        let mut payload = vec![0u8; super::MAX_PACKET_SIZE - header_size];
-        payload[..].copy_from_slice(&max_packet_buffer[header_size..]);
-        
         //get an index into our received packets at this packets location
         let index = header.seq as usize % BUFFER_SIZE;
 
         //catch a really old packet
-        if self.received_headers[index].0.seq > header.seq {
+        /*if self.received_headers[index].0.seq > header.seq {
             return Ok(None);
-        }
+        }*/
 
         //mark packets acknowledged
         //s should align with the sequence number on our end that needs to be acked
@@ -160,7 +131,7 @@ impl Connection {
         }
 
         //add this packet to our received packets
-        if header.seq >= self.ack {
+        if header.seq > self.ack || (header.seq < BUFFER_SIZE as u16 && self.ack > u16::MAX - BUFFER_SIZE as u16){
             self.ack = header.seq;
             //ack our packet here
             self.received_headers[index] = (header, true);
@@ -174,12 +145,7 @@ impl Connection {
         //but this is a good template
         self.acks = 0u32;
         for b in 0u16..32u16 {
-            let ack = self.ack as i32 - b as i32;
-
-            let ack: u16 = match ack.try_into() {
-                Ok(i) => i,
-                Err(_) => break
-            };
+            let ack = self.ack.wrapping_sub(b);
 
             //get packet from received packets here
             let index = ack as usize % BUFFER_SIZE;
@@ -188,6 +154,10 @@ impl Connection {
                 self.acks |= 1 << b; 
             }
         }
+
+        //read in the rest of the message as the payload
+        let mut payload = vec![0u8; super::MAX_PACKET_SIZE - header_size];
+        payload[..].copy_from_slice(&max_packet_buffer[header_size..]);
 
         Ok(Some(payload))
     }

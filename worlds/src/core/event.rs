@@ -1,93 +1,48 @@
-use winit::event::{VirtualKeyCode, WindowEvent, ElementState, MouseButton};
+use std::rc::Rc;
 
-#[derive(Clone)]
+use app::ClientEvent;
+use winit::event::{VirtualKeyCode, MouseButton};
+
+use super::Window;
+
+#[derive(Debug, Clone)]
 pub enum Event {
+    //input events
     KeyPressed(VirtualKeyCode),
     KeyReleased(VirtualKeyCode),
     MousePressed((MouseButton, (f64, f64))),
     MouseReleased((MouseButton, (f64, f64))),
-    CursorMoved((f64, f64))
-} 
-
-pub struct EventSystem {
-    mouse_inside: bool,
-    events: Vec<Event>,
-    
-    pub cursor_moved: bool,
-    pub mouse_pos: (f64, f64)
+    CursorMoved((f64, f64)),
 }
 
-impl EventSystem {
-    pub fn new() -> Self {
+pub struct ClientEventFactory {
+    window: Rc<Window>,
+}
+
+impl ClientEventFactory {
+    pub fn new(window: Rc<Window>) -> Self {
         Self {
-            mouse_inside: true,
-            events: Vec::new(),
-
-            cursor_moved: false,
-            mouse_pos: (0f64, 0f64)
+            window,
         }
     }
 
-    pub fn handle_event(&mut self, event: &WindowEvent) {
-        //construct my event object here
-        let event = match event {
-            //WindowEvent::Resized(_) => todo!(),
-            WindowEvent::KeyboardInput { input, ..} => {
-                if let Some(keycode) = input.virtual_keycode {
-                    match input.state {
-                        winit::event::ElementState::Pressed => {
-                            Some(Event::KeyPressed(keycode))
-                        },
-                        winit::event::ElementState::Released => {
-                            Some(Event::KeyReleased(keycode))
-                        },
-                    }
-                } else {
-                    None
-                }
-            },
-            //WindowEvent::ModifiersChanged(_) => todo!(),
-            WindowEvent::CursorMoved { position, .. } => {
-                //update our internal mouse position and don't emit an event
-                self.mouse_pos = (position.x, position.y);
-                self.cursor_moved = true;
-                None
-            },
-            WindowEvent::CursorEntered { .. } => {
-                self.mouse_inside = true;
-                None
-            },
-            WindowEvent::CursorLeft { .. } => {
-                self.mouse_inside = false;
-                None
-            },
-            //WindowEvent::MouseWheel { device_id, delta, phase, modifiers } => todo!(),
-            WindowEvent::MouseInput { state, button, .. } => {
-                match state {
-                    ElementState::Pressed => {
-                        Some(Event::MousePressed((*button, self.mouse_pos)))
-                    }
-                    ElementState::Released => {
-                        Some(Event::MouseReleased((*button, self.mouse_pos)))
-                    }
-                }
-            },
-            _ => None
-        };
-
-        //add the event to an internal list of events
-        if let Some(event) = event {
-            self.events.push(event);
-        }
-    }
-
-    pub fn emit(&mut self) -> Vec<Event> {
-        //aggregate cursor moved events here
-        if self.cursor_moved {
-            self.events.push(Event::CursorMoved(self.mouse_pos));
-            self.cursor_moved = false;
-        }
+    fn normalize_position(&self, position: (f64, f64)) -> (f64, f64) {
+        let window_size = self.window.winit_window().inner_size(); 
         
-        std::mem::take(&mut self.events)
+        let normalized_x = position.0 / window_size.width as f64;
+        let normalized_y = position.1 / window_size.height as f64;
+        let centered_x = normalized_x * 2.0 - 1.0; 
+        let centered_y = normalized_y * 2.0 - 1.0; 
+        (centered_x, centered_y)
+    }
+
+    pub fn create(&self, event: &Event) -> ClientEvent {
+        match event.clone() {
+            Event::KeyPressed(x) => ClientEvent::KeyPressed(x),
+            Event::KeyReleased(x) => ClientEvent::KeyReleased(x),
+            Event::MousePressed((button, position)) => ClientEvent::MousePressed((button, self.normalize_position(position))),
+            Event::MouseReleased((button, position)) => ClientEvent::MouseReleased((button, self.normalize_position(position))),
+            Event::CursorMoved(position) => ClientEvent::CursorMoved(self.normalize_position(position)),
+        }    
     }
 }

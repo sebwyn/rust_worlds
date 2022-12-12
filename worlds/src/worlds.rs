@@ -1,12 +1,14 @@
-
+use crate::core::{EventSystem, Scene, Window, ClientEventFactory};
 use crate::graphics::RenderApi;
-use crate::core::{Window, EventSystem, Scene};
 
-use crate::Voxels;
 use crate::scenes::Polygons;
+use crate::Voxels;
 
-use std::{time::Instant, rc::Rc};
-use winit::{event_loop::ControlFlow, event::{WindowEvent, KeyboardInput, ElementState, VirtualKeyCode, Event}};
+use std::{rc::Rc, time::Instant};
+use winit::{
+    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event_loop::ControlFlow,
+};
 
 pub struct App {
     _width: u32,
@@ -20,6 +22,7 @@ pub struct App {
     events: EventSystem,
     voxels: Voxels,
     polygons: Polygons,
+
 }
 
 impl App {
@@ -58,7 +61,6 @@ impl App {
     pub fn update(&mut self) {
         let events = self.events.emit();
         self.polygons.update(&events);
-        self.voxels.update(&events);
     }
 
     pub fn resize(&mut self, new_size: (u32, u32)) {
@@ -68,14 +70,17 @@ impl App {
     pub fn render(&mut self) {
         //limit frame rate because this cpu shit is crazy
         let _frame_time = self.last_frame.elapsed().as_millis();
+
         self.last_frame = Instant::now();
 
         //update the tex offset to move in a circle
         let current_texture = self.api.surface().get_current_texture().unwrap();
-        let current_texture_view = current_texture.texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let current_texture_view = current_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor::default());
 
-        self.voxels.render(&current_texture_view);
-        // self.polygons.render(&current_texture_view);
+        //self.voxels.render(&current_texture_view);
+        self.polygons.render(&current_texture_view);
 
         current_texture.present();
     }
@@ -85,26 +90,32 @@ impl App {
         let event_loop = winit::event_loop::EventLoop::new();
         let mut app = Self::new(&event_loop);
 
-        event_loop.run(move |event, _, control_flow| { 
-            let my_window_id = app.window.winit_window().id(); 
-            
+        event_loop.run(move |event, _, control_flow| {
+            let my_window_id = app.window.winit_window().id();
+
             match event {
-                Event::WindowEvent { ref event, window_id, }
-                if window_id == my_window_id => match event {
+                Event::WindowEvent {
+                    ref event,
+                    window_id,
+                } if window_id == my_window_id => match event {
                     //quit if they press escape or close the window
-                    WindowEvent::CloseRequested | WindowEvent::KeyboardInput {
-                        input: KeyboardInput {
-                            state: ElementState::Pressed,
-                            virtual_keycode: Some(VirtualKeyCode::Escape),
-                            ..
-                        },
+                    WindowEvent::CloseRequested
+                    | WindowEvent::KeyboardInput {
+                        input:
+                            KeyboardInput {
+                                state: ElementState::Pressed,
+                                virtual_keycode: Some(VirtualKeyCode::Escape),
+                                ..
+                            },
                         ..
                     } => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(new_size) => {
                         app.resize((new_size.width, new_size.height));
-                    },
+                    }
 
-                    e => { app.events.handle_event(e); },
+                    e => {
+                        app.events.handle_event(e);
+                    }
                 },
                 Event::RedrawRequested(window_id) if window_id == my_window_id => {
                     app.update();
