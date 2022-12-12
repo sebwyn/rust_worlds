@@ -61,6 +61,7 @@ impl App {
     pub fn update(&mut self) {
         let events = self.events.emit();
         self.polygons.update(&events);
+        //self.voxels.update(&events);
     }
 
     pub fn resize(&mut self, new_size: (u32, u32)) {

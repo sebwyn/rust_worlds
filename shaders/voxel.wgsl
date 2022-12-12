@@ -88,7 +88,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     //we now have a starting voxel we should check for collision???
     
     //cap the number of iterations at zero
-    for(var i: i32; i < 100; i++) {
+    var iterations = 0.0;
+    for(var i: i32; i < 50; i++) {
+        iterations += 0.02;
         if abs(t_max.x) < abs(t_max.y) && abs(t_max.x) < abs(t_max.z) {
             t_max.x = t_max.x + t_delta.x;
             voxel.x += step.x;
@@ -102,11 +104,25 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         //we have now found another voxel, maybe colorize this one somehow????
         if voxel_from_pos(voxel) {
-            return vec4<f32>(vec3<f32>(voxel) / 100.0, 1.0);
+            //return vec4<f32>(vec3<f32>(voxel) / 100.0, 1.0);
+            break;
         };
     }
+    
+    /*
+    var position = origin;
+    loop {
+        iterations += 0.05;
+        let sdf = (length(position - vec3<f32>(16.0))) - 8.0;
+        if sdf < 0.5 {
+            break;
+        } else if sdf > 100.0 {
+            break;
+        } else {
+            position += world_ray * sdf;
+        }
+    }*/
 
-    //return vec4<f32>(vec3<f32>(voxel) / 100.0, 1.0);
-
-    return vec4<f32>(vec3<f32>(0.0), 1.0);
+    //return vec4<f32>(0.0);
+    return vec4<f32>(vec3<f32>(1.0 - clamp(iterations, 0.0, 1.0)), 1.0);
 }

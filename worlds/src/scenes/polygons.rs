@@ -16,6 +16,7 @@ use client::open_connection;
 use crate::core::Event;
 use crate::core::Window;
 
+use std::io::stdin;
 use std::rc::Rc;
 
 //define a vert that just has a position
@@ -124,7 +125,12 @@ impl Polygons {
         }
 
         let event_factory = ClientEventFactory::new(window);
-        let client_agent = open_connection::<Vec<app::ClientEvent>, app::Snapshot>("127.0.0.1").expect("Failed to create a client agent");
+
+        println!("What ip would you like to connect to: ");
+        let mut input = String::new();
+        stdin().read_line(&mut input).unwrap();
+        input = input.trim().to_string();
+        let client_agent = open_connection::<Vec<app::ClientEvent>, app::Snapshot>(&input).expect("Failed to create a client agent");
 
         Self {
             camera,

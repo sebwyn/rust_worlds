@@ -40,7 +40,7 @@ impl Connection {
         let host_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), port.unwrap_or(0));
         let socket = BoofSocket::bind(host_address)?;
 
-        //socket.set_nonblocking(true)?;
+        socket.socket().set_nonblocking(true)?;
         socket.set_read_timeout(Some(Duration::from_nanos(10)))?;
 
         let port = socket.socket().local_addr()?.port();
