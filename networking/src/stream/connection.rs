@@ -64,6 +64,7 @@ impl Connection {
             IpAddr::V4(Ipv4Addr::from_str(client_address)?),
             client_port,
         );
+        println!("client port: {}", client_port);
 
         //socket options for streaming
         socket.socket().set_nonblocking(true)?;

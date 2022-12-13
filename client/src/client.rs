@@ -28,5 +28,7 @@ where
         )
     };
 
+    println!("host: {}, client {}", port, hand_shake.port);
+
     Agent::start(Some(port), ip, hand_shake.port)
 }
