@@ -56,8 +56,6 @@ impl Server {
 
             std::thread::sleep(Duration::from_millis(wait_time));
         }
-
-        //Ok(())
     }
 
     fn close_stale_connections(&mut self) {

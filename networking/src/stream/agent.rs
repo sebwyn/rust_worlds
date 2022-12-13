@@ -1,6 +1,6 @@
-use std::{error::Error, thread::JoinHandle, sync::mpsc, net::SocketAddr};
+use std::{error::Error, thread::JoinHandle, sync::mpsc, net::SocketAddr, time::{Instant, Duration}};
 use serde::{Serialize, de::DeserializeOwned};
-use crate::{ipv4_from_str, serialization::{deserialize, serialize}};
+use crate::serialization::{deserialize, serialize};
 use super::Connection;
 
 //think about changing agent to support encoding then sending
@@ -40,9 +40,8 @@ where
 
     pub fn start(host_port: Option<u16>, ip: &str, client_port: u16) -> Result<Self, Box<dyn Error>> {
 
-        let client_addr = SocketAddr::new(ipv4_from_str(ip)?, client_port);
-        let (connection, port) = Connection::new(client_addr, host_port)?;
-        let local_addr = SocketAddr::new(ipv4_from_str("127.0.0.1")?, port);
+        let connection = Connection::new(host_port, ip, client_port)?;
+        let local_addr = connection.local_addr().clone();
 
         let (thread_sender, receiver) = mpsc::channel::<R>();
         let (sender, thread_receiver) = mpsc::channel::<S>();
@@ -87,24 +86,31 @@ where
     }
 
     fn handle_connection(mut connection: Connection, sender: mpsc::Sender<R>, receiver: mpsc::Receiver<S>) -> Result<(), std::io::Error> {
+
+        let timeout = Duration::from_secs(5);
+        let mut last_received = Instant::now();
+
         loop {
             let message = connection.receive_bytes()?; 
             if let Some(message) = message {
+                println!("Receiving packet of length: {}", message.len());
+                //implement a timeout here
+                last_received = Instant::now();
+
                 //decode the message here
                 let message = match deserialize::<R>(&message) {
                     Some(sm) => sm,
                     None => continue,
                 };
                 sender.send(message).expect("Thread connection was dropped before being joined");
-
-                //ack the packet
-                //connection.send_bytes(&[])?;
             }
 
             //try and read a message and send it
             if let Ok(packet) = receiver.try_recv() {
                 connection.send_bytes(&serialize(&packet).unwrap())?;
             }
+
+            if last_received.elapsed() > timeout { break Ok(()) }
         }
     }
 }
