@@ -13,8 +13,7 @@ where
     R: Send + Sync + std::fmt::Debug + DeserializeOwned + 'static,
 {
     let (hand_shake, port): (HandShake, u16) = {
-        let local_address = SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 1234);
-        let hand_shake_socket = UdpSocket::bind(local_address)?;
+        let hand_shake_socket = UdpSocket::bind(("0.0.0.0", 0))?;
 
         hand_shake_socket.send_to(&[], (ip, app::SERVER_ROUTER_PORT)).unwrap();
 

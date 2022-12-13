@@ -113,7 +113,6 @@ impl App {
                     WindowEvent::Resized(new_size) => {
                         app.resize((new_size.width, new_size.height));
                     }
-
                     e => {
                         app.events.handle_event(e);
                     }

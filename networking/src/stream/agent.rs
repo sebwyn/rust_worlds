@@ -87,13 +87,14 @@ where
 
     fn handle_connection(mut connection: Connection, sender: mpsc::Sender<R>, receiver: mpsc::Receiver<S>) -> Result<(), std::io::Error> {
 
+        let keep_alive = Duration::from_secs(1);
+        let mut last_keep_alive = Instant::now();
         let timeout = Duration::from_secs(5);
         let mut last_received = Instant::now();
 
         loop {
             let message = connection.receive_bytes()?; 
             if let Some(message) = message {
-                println!("Receiving packet of length: {}", message.len());
                 //implement a timeout here
                 last_received = Instant::now();
 
@@ -110,7 +111,14 @@ where
                 connection.send_bytes(&serialize(&packet).unwrap())?;
             }
 
+            //send keep alives every second
+            if last_keep_alive.elapsed() > keep_alive { 
+                connection.send_bytes(&[])?;
+                last_keep_alive = Instant::now();
+            }
             if last_received.elapsed() > timeout { break Ok(()) }
+
+            std::thread::sleep(Duration::from_millis(5));
         }
     }
 }

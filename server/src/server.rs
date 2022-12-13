@@ -1,9 +1,10 @@
 use networking::stream::Agent;
 use std::{
+    collections::HashMap,
     error::Error,
     net::{SocketAddr, UdpSocket},
     sync::{Arc, Mutex},
-    time::Duration, collections::HashMap,
+    time::Duration,
 };
 
 use app::components::Player;
@@ -27,7 +28,7 @@ impl Server {
         Self {
             connections: Arc::new(Mutex::new(Vec::new())),
             tick_rate,
-            players: HashMap::new()
+            players: HashMap::new(),
         }
     }
 
@@ -49,10 +50,15 @@ impl Server {
             for (client, events) in client_messages {
                 let player = self.players.entry(client).or_insert(Player::new());
                 player.update(events);
-                snapshot.0.push(app::GameObject::Player { addr: client, transform: player.transform() });
+                snapshot.0.push(app::GameObject::Player {
+                    addr: client,
+                    transform: player.transform(),
+                });
             }
 
-            self.send_clients_messages(snapshot);
+            if self.players.len() > 0 {
+                self.send_clients_messages(snapshot);
+            }
 
             std::thread::sleep(Duration::from_millis(wait_time));
         }
@@ -61,7 +67,15 @@ impl Server {
     fn close_stale_connections(&mut self) {
         let mut clients = self.connections.lock().unwrap();
 
-        clients.retain(|(_addr, agent)| !agent.lost_connection());
+        clients.retain(|(addr, agent)| {
+            if agent.lost_connection() {
+                println!("{:?}", addr);
+                self.players.remove(addr);
+                false
+            } else {
+                true
+            }
+        });
     }
 
     //loop and update our clients based on input
@@ -90,7 +104,7 @@ impl Server {
     }
 
     fn listen_thread(connections: Arc<Mutex<Vec<(SocketAddr, Agent<Sending, Receiving>)>>>) {
-        let router = UdpSocket::bind("127.0.0.1:6669").expect("Failed to open listen thread");
+        let router = UdpSocket::bind("0.0.0.0:6669").expect("Failed to open listen thread");
 
         //I'm assuming each send gets mapped to one recv, but idk, who knows, we'll find out
         let mut big_packet_buffer = vec![0u8; app::MAX_PACKET_SIZE];

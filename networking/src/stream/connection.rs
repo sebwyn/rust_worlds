@@ -54,11 +54,9 @@ impl Connection {
         client_port: u16,
     ) -> Result<Self, Box<dyn Error>> {
         //the actual socket underlying the connection
-        let socket = BoofSocket::bind(format!(
-            "{}:{}",
-            Ipv4Addr::LOCALHOST.to_string(),
-            host_port.unwrap_or(0)
-        ))?;
+        let socket = BoofSocket::bind(
+            ("0.0.0.0", host_port.unwrap_or(0))
+        )?;
 
         //connection details
         let host_address = socket.socket().local_addr()?;
@@ -103,7 +101,7 @@ impl Connection {
             ack: self.ack,
             acks: self.acks,
         };
-
+        
         let mut packet_bytes = serialize(&header).unwrap();
         packet_bytes.extend_from_slice(bytes);
 
@@ -114,7 +112,6 @@ impl Connection {
         self.socket.send_to(&packet_bytes, self.client_address)?;
 
         self.sequence = self.sequence.wrapping_add(1);
-
         Ok(())
     }
 
@@ -180,7 +177,7 @@ impl Connection {
         //read in the rest of the message as the payload
         let mut payload = vec![0u8; super::MAX_PACKET_SIZE - header_size];
         payload[..].copy_from_slice(&max_packet_buffer[header_size..]);
-
+        
         Ok(Some(payload))
     }
 }

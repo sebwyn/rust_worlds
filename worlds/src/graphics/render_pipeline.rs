@@ -183,7 +183,6 @@ impl RenderPipeline {
         let shader = Shader::new(descriptor.shader, api.render_context.clone());
 
         let uniform_layouts = shader.layouts();
-        println!("Shader layouts: {:?}", uniform_layouts);
 
         let targets: Vec<Option<wgpu::ColorTargetState>> = 
             descriptor.attachment_accesses.iter()

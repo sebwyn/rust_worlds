@@ -17,7 +17,9 @@ use crate::core::Event;
 use crate::core::Window;
 
 use std::io::stdin;
+use std::net::Ipv4Addr;
 use std::rc::Rc;
+use std::str::FromStr;
 
 //define a vert that just has a position
 pub use crate::graphics::wgsl_types::Vec3;
@@ -54,7 +56,7 @@ pub struct Polygons {
     view_matrix_binding: UniformBinding,
 
     event_factory: ClientEventFactory,
-    client_agent: Agent<Vec<app::ClientEvent>, app::Snapshot>,
+    client_agent: Option<Agent<Vec<app::ClientEvent>, app::Snapshot>>,
 }
 
 impl Polygons {
@@ -130,7 +132,7 @@ impl Polygons {
         let mut input = String::new();
         stdin().read_line(&mut input).unwrap();
         input = input.trim().to_string();
-        let client_agent = open_connection::<Vec<app::ClientEvent>, app::Snapshot>(&input).expect("Failed to create a client agent");
+        let client_agent = Some(open_connection::<Vec<app::ClientEvent>, app::Snapshot>(&input).expect("Failed to create a client agent"));
 
         Self {
             camera,
@@ -148,32 +150,57 @@ impl Polygons {
 impl Scene for Polygons {
     //this update just serves as a camera controller right now
     fn update(&mut self, events: &[Event]) {
-        if events.len() > 0 {
-            self.client_agent.send_message(events.iter().map(|event| {
-                self.event_factory.create(event) 
-            }).collect());
-        }
         self.camera.update(events);
-        
-        //also pull events from our client agent here
-        if let Some(app::Snapshot(game_objects)) = self.client_agent.get_messages().last() {
-            let mut my_transform: Option<app::Transform> = None;
 
-            for object in game_objects {
-                match object {
-                    app::GameObject::Player { addr, transform } => { 
-                        if addr.ip() == self.client_agent.local_addr().ip() 
-                        && addr.port() == self.client_agent.local_addr().port() {
-                            my_transform = Some(transform.clone()); 
-                        } else {
-                            self.other_transform = Some(transform.clone());
-                        }
-                    },
-                }
+        if let Some(client_agent) = &self.client_agent {
+            if client_agent.lost_connection() {
+                //take the client agent
+                self.client_agent.take();
+                return
             }
 
-            if let Some(_transform) = my_transform {
-                //update local position with this position
+            if events.len() > 0 {
+                client_agent.send_message(events.iter().map(|event| {
+                    self.event_factory.create(event) 
+                }).collect());
+            }
+            
+            //also pull events from our client agent here
+            if let Some(app::Snapshot(game_objects)) = client_agent.get_messages().last() {
+                let mut my_transform: Option<app::Transform> = None;
+
+                let mut local_addresses: Vec<std::net::Ipv4Addr> = local_ip_address::list_afinet_netifas()
+                    .unwrap()
+                    .into_iter()
+                    .filter_map(|(_name, addr)| {
+                        if let std::net::IpAddr::V4(v4) = addr {
+                            Some(v4)
+                        } else {
+                            None
+                        }
+                    }).collect();
+
+                local_addresses.push(Ipv4Addr::from_str("0.0.0.0").unwrap());
+
+                for object in game_objects {
+                    match object {
+                        app::GameObject::Player { addr, transform } => { 
+                            //crazy matching for local address
+                            if addr.port() == client_agent.local_addr().port() {
+                            if let std::net::IpAddr::V4(v4) = addr.ip() {
+                                if local_addresses.iter().find(|local_addr| v4 == **local_addr).is_some() {
+                                    my_transform = Some(transform.clone()); 
+                                    continue;
+                                }
+                            }}
+                            self.other_transform = Some(transform.clone());
+                        },
+                    }
+                }
+
+                if let Some(_transform) = my_transform {
+                    //update local position with this position
+                }
             }
         }
     }
