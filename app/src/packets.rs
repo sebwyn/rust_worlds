@@ -20,15 +20,11 @@ pub enum ClientEvent {
     ScreenSizeChanged((f64, f64)),
 } 
 
+//using the server to derive the local ip, kind strange
 #[derive(Serialize, Deserialize)]
 pub struct HandShake {
+    pub client_ip: String,
     pub port: u16,
-}
-
-impl HandShake {
-    pub fn new(port: u16) -> Self {
-        Self { port }
-    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

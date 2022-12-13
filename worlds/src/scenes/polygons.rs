@@ -55,43 +55,12 @@ pub struct Polygons {
     pipeline: RenderPipeline,
     view_matrix_binding: UniformBinding,
 
+    local_addresses: Vec<Ipv4Addr>,
     event_factory: ClientEventFactory,
     client_agent: Option<Agent<Vec<app::ClientEvent>, app::Snapshot>>,
 }
 
 impl Polygons {
-    const INDICES: [u32; 6] = [0, 1, 2, 3, 2, 1];
-    const VERTICES: [Vert; 4] = [
-        Vert {
-            position: Vec3 {
-                x: -1f32,
-                y: -1f32,
-                z: 0f32,
-            },
-        },
-        Vert {
-            position: Vec3 {
-                x: 1f32,
-                y: -1f32,
-                z: 0f32,
-            },
-        },
-        Vert {
-            position: Vec3 {
-                x: -1f32,
-                y: 1f32,
-                z: 0f32,
-            },
-        },
-        Vert {
-            position: Vec3 {
-                x: 1f32,
-                y: 1f32,
-                z: 0f32,
-            },
-        },
-    ];
-
     pub fn new(window: Rc<Window>, api: &RenderApi) -> Self {
         let mut pipeline =
             api.create_render_pipeline_with_vertex::<Vert>(RenderPipelineDescriptor {
@@ -104,9 +73,6 @@ impl Polygons {
                 },
                 primitive: RenderPrimitive::Triangles,
             });
-
-        pipeline.set_vertices(&Self::VERTICES);
-        pipeline.set_indices(&Self::INDICES);
 
         let view_matrix_binding = pipeline
             .shader()
@@ -132,7 +98,23 @@ impl Polygons {
         let mut input = String::new();
         stdin().read_line(&mut input).unwrap();
         input = input.trim().to_string();
-        let client_agent = Some(open_connection::<Vec<app::ClientEvent>, app::Snapshot>(&input).expect("Failed to create a client agent"));
+        let (my_ip, client_agent) = open_connection::<Vec<app::ClientEvent>, app::Snapshot>(&input).expect("Failed to create a client agent");
+
+        let mut local_addresses: Vec<std::net::Ipv4Addr> = local_ip_address::list_afinet_netifas()
+            .unwrap()
+            .into_iter()
+            .filter_map(|(_name, addr)| {
+                if let std::net::IpAddr::V4(v4) = addr {
+                    Some(v4)
+                } else {
+                    None
+                }
+            }).collect();
+
+        println!("{}", my_ip);
+        local_addresses.push(Ipv4Addr::from_str(&my_ip).unwrap());
+
+        local_addresses.push(Ipv4Addr::from_str("0.0.0.0").unwrap());
 
         Self {
             camera,
@@ -142,7 +124,8 @@ impl Polygons {
             view_matrix_binding,
             
             event_factory,
-            client_agent
+            client_agent: Some(client_agent),
+            local_addresses
         }
     }
 }
@@ -169,26 +152,16 @@ impl Scene for Polygons {
             if let Some(app::Snapshot(game_objects)) = client_agent.get_messages().last() {
                 let mut my_transform: Option<app::Transform> = None;
 
-                let mut local_addresses: Vec<std::net::Ipv4Addr> = local_ip_address::list_afinet_netifas()
-                    .unwrap()
-                    .into_iter()
-                    .filter_map(|(_name, addr)| {
-                        if let std::net::IpAddr::V4(v4) = addr {
-                            Some(v4)
-                        } else {
-                            None
-                        }
-                    }).collect();
-
-                local_addresses.push(Ipv4Addr::from_str("0.0.0.0").unwrap());
+                //actual ip
 
                 for object in game_objects {
                     match object {
                         app::GameObject::Player { addr, transform } => { 
                             //crazy matching for local address
+                            //println!("{}, {:?}", addr, local_addresses);
                             if addr.port() == client_agent.local_addr().port() {
                             if let std::net::IpAddr::V4(v4) = addr.ip() {
-                                if local_addresses.iter().find(|local_addr| v4 == **local_addr).is_some() {
+                                if self.local_addresses.iter().find(|local_addr| v4 == **local_addr).is_some() {
                                     my_transform = Some(transform.clone()); 
                                     continue;
                                 }

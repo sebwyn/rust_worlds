@@ -114,8 +114,10 @@ impl Server {
                 .recv_from(&mut big_packet_buffer)
                 .expect("The server router failed to receive? Dead?");
 
-            if let Ok(agent) = Agent::start(None, &client.ip().to_string(), client.port()) {
-                let hand_shake = HandShake::new(agent.local_addr().port());
+            let client_ip = client.ip().to_string();
+
+            if let Ok(agent) = Agent::start(None, &client_ip, client.port()) {
+                let hand_shake = HandShake { client_ip, port: agent.local_addr().port() };
                 //send this client a packet back with the port of the connection
                 router
                     .send_to(app::serialize(&hand_shake).unwrap().as_slice(), client)
