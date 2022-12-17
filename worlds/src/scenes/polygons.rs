@@ -49,13 +49,12 @@ impl Vertex for Vert {
 pub struct Polygons {
     //logic stuff
     camera: Camera,
-    other_transform: Option<app::Transform>,
+    other_transforms: Vec<app::Transform>,
 
     //rendering stuff
     pipeline: RenderPipeline,
     view_matrix_binding: UniformBinding,
 
-    local_addresses: Vec<Ipv4Addr>,
     event_factory: ClientEventFactory,
     client_agent: Option<Agent<Vec<app::ClientEvent>, app::Snapshot>>,
 }
@@ -98,34 +97,17 @@ impl Polygons {
         let mut input = String::new();
         stdin().read_line(&mut input).unwrap();
         input = input.trim().to_string();
-        let (my_ip, client_agent) = open_connection::<Vec<app::ClientEvent>, app::Snapshot>(&input).expect("Failed to create a client agent");
-
-        let mut local_addresses: Vec<std::net::Ipv4Addr> = local_ip_address::list_afinet_netifas()
-            .unwrap()
-            .into_iter()
-            .filter_map(|(_name, addr)| {
-                if let std::net::IpAddr::V4(v4) = addr {
-                    Some(v4)
-                } else {
-                    None
-                }
-            }).collect();
-
-        println!("{}", my_ip);
-        local_addresses.push(Ipv4Addr::from_str(&my_ip).unwrap());
-
-        local_addresses.push(Ipv4Addr::from_str("0.0.0.0").unwrap());
+        let client_agent = open_connection::<Vec<app::ClientEvent>, app::Snapshot>(&input).expect("Failed to create a client agent");
 
         Self {
             camera,
-            other_transform: None,
+            other_transforms: Vec::new(),
 
             pipeline,
             view_matrix_binding,
             
             event_factory,
             client_agent: Some(client_agent),
-            local_addresses
         }
     }
 }
@@ -135,6 +117,7 @@ impl Scene for Polygons {
     fn update(&mut self, events: &[Event]) {
         self.camera.update(events);
 
+        //networking code
         if let Some(client_agent) = &self.client_agent {
             if client_agent.lost_connection() {
                 //take the client agent
@@ -149,38 +132,18 @@ impl Scene for Polygons {
             }
             
             //also pull events from our client agent here
-            if let Some(app::Snapshot(game_objects)) = client_agent.get_messages().last() {
-                let mut my_transform: Option<app::Transform> = None;
-
-                //actual ip
-
-                for object in game_objects {
-                    match object {
-                        app::GameObject::Player { addr, transform } => { 
-                            //crazy matching for local address
-                            //println!("{}, {:?}", addr, local_addresses);
-                            if addr.port() == client_agent.local_addr().port() {
-                            if let std::net::IpAddr::V4(v4) = addr.ip() {
-                                if self.local_addresses.iter().find(|local_addr| v4 == **local_addr).is_some() {
-                                    my_transform = Some(transform.clone()); 
-                                    continue;
-                                }
-                            }}
-                            self.other_transform = Some(transform.clone());
-                        },
-                    }
-                }
-
-                if let Some(_transform) = my_transform {
-                    //update local position with this position
+            if let Some(app::Snapshot { other_transforms, .. }) = client_agent.get_messages().pop() {
+                println!("{:?}", other_transforms);
+                if other_transforms.len() > 0 {
+                    self.other_transforms = other_transforms;
                 }
             }
         }
     }
 
     fn render(&mut self, surface_view: &wgpu::TextureView) {
-        let model_matrix = if let Some(other_transform) = &self.other_transform {
-            //calculate a model matrix from a transform here 
+
+        let model_matrix = if let Some(other_transform) = &self.other_transforms.get(0) {
             cgmath::Matrix4::from_translation(other_transform.position.into())
         } else {
             cgmath::Matrix4::one()

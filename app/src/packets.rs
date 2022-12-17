@@ -1,7 +1,5 @@
-use std::net::SocketAddr;
-
-use serde::{Serialize, Deserialize};
-use winit::event::{VirtualKeyCode, MouseButton};
+use serde::{Deserialize, Serialize};
+use winit::event::{MouseButton, VirtualKeyCode};
 
 //the server will be responsible for running player controllers
 //this means that it will generate appropriate matrices and be able to perform raycasts
@@ -15,32 +13,25 @@ pub enum ClientEvent {
     MousePressed((MouseButton, (f64, f64))),
     MouseReleased((MouseButton, (f64, f64))),
     CursorMoved((f64, f64)),
-    
+
     //resolution changes, used to decode mouse events
     ScreenSizeChanged((f64, f64)),
-} 
+}
 
 //using the server to derive the local ip, kind strange
 #[derive(Serialize, Deserialize)]
 pub struct HandShake {
-    pub client_ip: String,
     pub port: u16,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Transform {
     pub position: [f32; 3],
-    pub rotation: [f32; 2]
-}
-
-
-#[derive(Deserialize, Serialize, Debug, Clone)]
-pub enum GameObject {
-    Player { 
-        addr: SocketAddr,
-        transform: Transform,
-    },
+    pub rotation: [f32; 2],
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct Snapshot(pub Vec<GameObject>);
+pub struct Snapshot {
+    pub local_transform: Option<Transform>,
+    pub other_transforms: Vec<Transform>,
+}

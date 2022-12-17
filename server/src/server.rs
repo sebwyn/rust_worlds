@@ -17,7 +17,8 @@ type Sending = Snapshot;
 //think about tokio for dealing with all these threads
 pub struct Server {
     connections: Arc<Mutex<Vec<(SocketAddr, Agent<Sending, Receiving>)>>>,
-
+    
+    //game state
     players: HashMap<SocketAddr, Player>,
 
     tick_rate: u64,
@@ -45,19 +46,40 @@ impl Server {
             self.close_stale_connections();
             let client_messages: Vec<(SocketAddr, Receiving)> = self.get_client_messages();
 
-            let mut snapshot = Snapshot(Vec::new());
+            let mut player_transforms = Vec::new();
             //update our world (modify our messages, so they look better)
             for (client, events) in client_messages {
-                let player = self.players.entry(client).or_insert(Player::new());
+                let player = self.players.entry(client).or_insert_with(|| Player::new() );
                 player.update(events);
-                snapshot.0.push(app::GameObject::Player {
-                    addr: client,
-                    transform: player.transform(),
-                });
+                player_transforms.push((client, player.transform()));
             }
 
             if self.players.len() > 0 {
-                self.send_clients_messages(snapshot);
+                
+                let clients = self.connections.lock().unwrap();
+
+                //big slow loop, but this prevents this from being done as intensely on the
+                //client side
+                for (client, agent) in clients.iter() {
+
+                    //construct a complex packet here
+                    let mut local_transform = None;
+                    let mut other_transforms = Vec::new();
+
+                    for (player_ip, transform) in player_transforms.iter() {
+                        if player_ip == client {
+                            local_transform = Some(transform.clone());
+                        } else {
+                            other_transforms.push(transform.clone());
+                        }
+                    };
+
+                    let snapshot = app::Snapshot { local_transform, other_transforms };
+
+                    //send a vector of messages excluding messages from this client
+                    agent.send_message(snapshot);
+                }
+
             }
 
             std::thread::sleep(Duration::from_millis(wait_time));
@@ -93,16 +115,6 @@ impl Server {
             .collect()
     }
 
-    //send a message to our clients with the updated world state
-    fn send_clients_messages(&self, message: Sending) {
-        let clients = self.connections.lock().unwrap();
-
-        for (_, agent) in clients.iter() {
-            //send a vector of messages excluding messages from this client
-            agent.send_message(message.clone());
-        }
-    }
-
     fn listen_thread(connections: Arc<Mutex<Vec<(SocketAddr, Agent<Sending, Receiving>)>>>) {
         let router = UdpSocket::bind("0.0.0.0:6669").expect("Failed to open listen thread");
 
@@ -117,7 +129,7 @@ impl Server {
             let client_ip = client.ip().to_string();
 
             if let Ok(agent) = Agent::start(None, &client_ip, client.port()) {
-                let hand_shake = HandShake { client_ip, port: agent.local_addr().port() };
+                let hand_shake = HandShake { port: agent.local_addr().port() };
                 //send this client a packet back with the port of the connection
                 router
                     .send_to(app::serialize(&hand_shake).unwrap().as_slice(), client)

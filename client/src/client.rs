@@ -7,7 +7,7 @@ use app::HandShake;
 use networking::stream::Agent;
 use serde::{Serialize, de::DeserializeOwned};
 
-pub fn open_connection<S, R>(ip: &str) -> Result<(String, Agent<S, R>), Box<dyn Error>> 
+pub fn open_connection<S, R>(ip: &str) -> Result<Agent<S, R>, Box<dyn Error>> 
 where
     S: Send + Sync + std::fmt::Debug + Serialize + 'static,
     R: Send + Sync + std::fmt::Debug + DeserializeOwned + 'static,
@@ -30,5 +30,5 @@ where
 
     println!("host: {}, client {}", port, hand_shake.port);
 
-    Agent::start(Some(port), ip, hand_shake.port).map(|agent| (hand_shake.client_ip, agent))
+    Agent::start(Some(port), ip, hand_shake.port)
 }

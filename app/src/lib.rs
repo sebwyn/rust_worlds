@@ -5,7 +5,7 @@ mod serialization;
 pub use serialization::{serialize, deserialize, serialized_size};
 
 mod packets;
-pub use packets::{GameObject, ClientEvent, Snapshot, HandShake, Transform};
+pub use packets::{ClientEvent, Snapshot, HandShake, Transform};
 
 pub mod components;
 
