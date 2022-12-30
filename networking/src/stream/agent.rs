@@ -17,11 +17,15 @@ pub struct Agent<S, R> {
     receiver: mpsc::Receiver<R>,
     sender: mpsc::Sender<S>,
 
-    signal: mpsc::Receiver<()>,
+    timeout_signal: mpsc::Receiver<()>,
+    kill_signaller: mpsc::Sender<()>,
 }
 
 impl<S, R> Drop for Agent<S, R> {
     fn drop(&mut self) {
+        match self.kill_signaller.send(()) {
+            Ok(_) | Err(_) => {}
+        }
         match self.handle.take().expect("Agent already joined????").join() {
             Ok(Err(ioe)) => {
                 eprintln!("Io error: {:?}", ioe);
@@ -52,11 +56,12 @@ where
         let (thread_sender, receiver) = mpsc::channel::<R>();
         let (sender, thread_receiver) = mpsc::channel::<S>();
 
-        let (signaller, signal) = mpsc::channel::<()>();
+        let (timeout_signaller, timeout_signal) = mpsc::channel::<()>();
+        let (kill_signaller, kill_signal) = mpsc::channel::<()>();
         
         let handle = Some(std::thread::spawn(move || { 
-            let result = Self::handle_connection(connection, thread_sender, thread_receiver); 
-            signaller.send(()).expect("Thread connection was dropped before being joined!");
+            let result = Self::handle_connection(connection, thread_sender, thread_receiver, kill_signal); 
+            timeout_signaller.send(()).expect("Thread connection was dropped before being joined!");
             result
         }));
 
@@ -66,12 +71,13 @@ where
             handle,
             receiver,
             sender,
-            signal,
+            timeout_signal,
+            kill_signaller
         })
     }
 
     pub fn lost_connection(&self) -> bool {
-        if let Ok(_) = self.signal.try_recv() {
+        if let Ok(_) = self.timeout_signal.try_recv() {
             true 
         } else {
             false
@@ -91,7 +97,7 @@ where
         let _result = self.sender.send(messages);
     }
 
-    fn handle_connection(mut connection: Connection, sender: mpsc::Sender<R>, receiver: mpsc::Receiver<S>) -> Result<(), std::io::Error> {
+    fn handle_connection(mut connection: Connection, sender: mpsc::Sender<R>, receiver: mpsc::Receiver<S>, kill_signal: mpsc::Receiver<()>) -> Result<(), std::io::Error> {
 
         let keep_alive = Duration::from_secs(1);
         let mut last_keep_alive = Instant::now();
@@ -110,8 +116,6 @@ where
                         None => None,
                     };
 
-                println!("{:?}", message);
-
                 if let Some(message) = message {
                     sender.send(message).expect("Thread connection was dropped before being joined");
                 }
@@ -124,10 +128,13 @@ where
 
             //send keep alives every second
             if last_keep_alive.elapsed() > keep_alive { 
-                connection.send_bytes(&[])?;
+                connection.send_bytes(&serialize(&AgentEnum::<S>::KeepAlive).unwrap())?;
                 last_keep_alive = Instant::now();
             }
             if last_received.elapsed() > timeout { break Ok(()) }
+
+            //respond to kill signals
+            if kill_signal.try_recv().is_ok() { break Ok(()) }
 
             std::thread::sleep(Duration::from_millis(5));
         }

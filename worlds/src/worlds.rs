@@ -1,4 +1,4 @@
-use crate::core::{EventSystem, Scene, Window, ClientEventFactory};
+use crate::core::{EventSystem, Scene, Window};
 use crate::graphics::RenderApi;
 
 use crate::scenes::Polygons;
@@ -64,11 +64,11 @@ impl App {
         //self.voxels.update(&events);
     }
 
-    pub fn resize(&mut self, new_size: (u32, u32)) {
+    fn resize(&mut self, new_size: (u32, u32)) {
         self.api.resize(new_size)
     }
 
-    pub fn render(&mut self) {
+    fn render(&mut self) {
         //limit frame rate because this cpu shit is crazy
         let _frame_time = self.last_frame.elapsed().as_millis();
 
@@ -127,5 +127,6 @@ impl App {
                 _ => {}
             };
         });
+
     }
 }

@@ -17,9 +17,7 @@ use crate::core::Event;
 use crate::core::Window;
 
 use std::io::stdin;
-use std::net::Ipv4Addr;
 use std::rc::Rc;
-use std::str::FromStr;
 
 //define a vert that just has a position
 pub use crate::graphics::wgsl_types::Vec3;
