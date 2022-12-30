@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use winit::event::{MouseButton, VirtualKeyCode};
 
@@ -32,6 +34,6 @@ pub struct Transform {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Snapshot {
-    pub local_transform: Option<Transform>,
-    pub other_transforms: Vec<Transform>,
+    pub local_id: u32,
+    pub player_transforms: HashMap<u32, Transform>,
 }

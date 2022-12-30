@@ -1,7 +1,13 @@
 use std::{error::Error, thread::JoinHandle, sync::mpsc, net::SocketAddr, time::{Instant, Duration}};
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{Serialize, de::DeserializeOwned, Deserialize};
 use crate::serialization::{deserialize, serialize};
 use super::Connection;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+enum AgentEnum<T> {
+    KeepAlive,
+    Message(T)
+}
 
 //think about changing agent to support encoding then sending
 pub struct Agent<S, R> {
@@ -34,7 +40,7 @@ impl<S, R> Drop for Agent<S, R> {
 impl<S, R> Agent<S, R> 
 where
     S: Send + Sync + std::fmt::Debug + Serialize + 'static,
-    R: Send + Sync + std::fmt::Debug + DeserializeOwned + 'static,
+    R: Send + Sync + std::fmt::Debug + DeserializeOwned + 'static
 {
     pub fn local_addr(&self) -> SocketAddr { self.local_addr }
 
@@ -93,22 +99,27 @@ where
         let mut last_received = Instant::now();
 
         loop {
-            let message = connection.receive_bytes()?; 
-            if let Some(message) = message {
+            let bytes = connection.receive_bytes()?; 
+            if let Some(bytes) = bytes {
                 //implement a timeout here
                 last_received = Instant::now();
-
                 //decode the message here
-                let message = match deserialize::<R>(&message) {
-                    Some(sm) => sm,
-                    None => continue,
-                };
-                sender.send(message).expect("Thread connection was dropped before being joined");
+                let message = match deserialize::<AgentEnum<R>>(&bytes) {
+                        Some(AgentEnum::Message(m)) => Some(m),
+                        Some(AgentEnum::KeepAlive) => None,
+                        None => None,
+                    };
+
+                println!("{:?}", message);
+
+                if let Some(message) = message {
+                    sender.send(message).expect("Thread connection was dropped before being joined");
+                }
             }
 
             //try and read a message and send it
             if let Ok(packet) = receiver.try_recv() {
-                connection.send_bytes(&serialize(&packet).unwrap())?;
+                connection.send_bytes(&serialize(&AgentEnum::Message(packet)).unwrap())?;
             }
 
             //send keep alives every second

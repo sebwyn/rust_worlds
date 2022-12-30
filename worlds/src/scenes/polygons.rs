@@ -132,11 +132,20 @@ impl Scene for Polygons {
             }
             
             //also pull events from our client agent here
-            if let Some(app::Snapshot { other_transforms, .. }) = client_agent.get_messages().pop() {
-                println!("{:?}", other_transforms);
-                if other_transforms.len() > 0 {
-                    self.other_transforms = other_transforms;
-                }
+            if let Some(app::Snapshot { local_id, player_transforms }) = client_agent.get_messages().pop() {
+                println!("{}", player_transforms.len());
+
+                 self.other_transforms = player_transforms
+                    .into_iter()
+                    .filter_map(|(k, v)| {
+                        if local_id == k {
+                            None
+                        } else {
+                            Some(v)
+                        }
+                    })
+                    .collect();
+
             }
         }
     }

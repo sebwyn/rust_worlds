@@ -17,9 +17,11 @@ type Sending = Snapshot;
 //think about tokio for dealing with all these threads
 pub struct Server {
     connections: Arc<Mutex<Vec<(SocketAddr, Agent<Sending, Receiving>)>>>,
-    
+
+    next_player_id: u32,
+    player_ids: HashMap<SocketAddr, u32>,
     //game state
-    players: HashMap<SocketAddr, Player>,
+    players: HashMap<u32, Player>,
 
     tick_rate: u64,
 }
@@ -30,6 +32,8 @@ impl Server {
             connections: Arc::new(Mutex::new(Vec::new())),
             tick_rate,
             players: HashMap::new(),
+            player_ids: HashMap::new(),
+            next_player_id: 0,
         }
     }
 
@@ -46,40 +50,39 @@ impl Server {
             self.close_stale_connections();
             let client_messages: Vec<(SocketAddr, Receiving)> = self.get_client_messages();
 
-            let mut player_transforms = Vec::new();
-            //update our world (modify our messages, so they look better)
+            //update players based on received events
             for (client, events) in client_messages {
-                let player = self.players.entry(client).or_insert_with(|| Player::new() );
+                let player_id = self.player_ids.entry(client).or_insert_with(|| {
+                    self.next_player_id += 1;
+                    self.next_player_id
+                });
+                let player = self.players.entry(*player_id).or_insert(Player::new());
                 player.update(events);
-                player_transforms.push((client, player.transform()));
             }
 
+            let player_transforms: HashMap<u32, app::Transform> = self
+                .players
+                .iter()
+                .map(|(k, player)| (*k, player.transform()))
+                .collect();
+
             if self.players.len() > 0 {
-                
                 let clients = self.connections.lock().unwrap();
-
-                //big slow loop, but this prevents this from being done as intensely on the
-                //client side
                 for (client, agent) in clients.iter() {
-
-                    //construct a complex packet here
-                    let mut local_transform = None;
-                    let mut other_transforms = Vec::new();
-
-                    for (player_ip, transform) in player_transforms.iter() {
-                        if player_ip == client {
-                            local_transform = Some(transform.clone());
-                        } else {
-                            other_transforms.push(transform.clone());
-                        }
+                    let id = match self.player_ids.get(client) {
+                        Some(id) => id,
+                        None => break,
                     };
 
-                    let snapshot = app::Snapshot { local_transform, other_transforms };
+                    let snapshot = app::Snapshot {
+                        player_transforms: player_transforms.clone(),
+                        local_id: *id,
+                    };
 
+                    println!("{}: {}", id, snapshot.player_transforms.len());
                     //send a vector of messages excluding messages from this client
                     agent.send_message(snapshot);
                 }
-
             }
 
             std::thread::sleep(Duration::from_millis(wait_time));
@@ -91,8 +94,8 @@ impl Server {
 
         clients.retain(|(addr, agent)| {
             if agent.lost_connection() {
-                println!("{:?}", addr);
-                self.players.remove(addr);
+                let id = self.player_ids.remove(addr).unwrap();
+                self.players.remove(&id);
                 false
             } else {
                 true
@@ -129,7 +132,9 @@ impl Server {
             let client_ip = client.ip().to_string();
 
             if let Ok(agent) = Agent::start(None, &client_ip, client.port()) {
-                let hand_shake = HandShake { port: agent.local_addr().port() };
+                let hand_shake = HandShake {
+                    port: agent.local_addr().port(),
+                };
                 //send this client a packet back with the port of the connection
                 router
                     .send_to(app::serialize(&hand_shake).unwrap().as_slice(), client)
