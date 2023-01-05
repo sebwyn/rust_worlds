@@ -54,8 +54,11 @@ pub struct Instance {
 
 impl From<app::Transform> for Instance {
     fn from(transform: app::Transform) -> Self {
+        let rotation_matrix = 
+                          cgmath::Matrix4::from_angle_y(cgmath::Rad(-transform.rotation[1]))
+                        * cgmath::Matrix4::from_angle_x(cgmath::Rad(-transform.rotation[0]));
         Self {
-            model: (cgmath::Matrix4::from_translation(transform.position.into())/* * cgmath::Matrix4::from(transform.rotation)*/).into(),
+            model: (cgmath::Matrix4::from_translation(transform.position.into()) * rotation_matrix).into(),
         }
     }
 }
