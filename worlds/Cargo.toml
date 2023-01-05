@@ -34,6 +34,9 @@ path = "../networking"
 [dependencies.client]
 path = "../client"
 
+[dependencies.server]
+path = "../server"
+
 [dependencies.image]
 version = "0.24"
 default-features = false

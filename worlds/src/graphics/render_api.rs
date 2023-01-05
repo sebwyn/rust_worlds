@@ -35,11 +35,12 @@ impl RenderApi {
         Texture::load(file, self.render_context.clone())
     }
     
-    pub fn create_render_pipeline<T>(&self, descriptor: RenderPipelineDescriptor) -> RenderPipeline 
-    where
-        T: Vertex
-    {
-        RenderPipeline::new::<T>(descriptor, self)
+    pub fn create_render_pipeline<V: Vertex>(&self, descriptor: RenderPipelineDescriptor) -> RenderPipeline {
+        RenderPipeline::new::<V>(descriptor, self)
+    }
+
+    pub fn create_instanced_render_pipeline<V: Vertex, I: Vertex>(&self, descriptor: RenderPipelineDescriptor) -> RenderPipeline {
+        RenderPipeline::new_instanced::<V, I>(descriptor, self)
     }
 }
 

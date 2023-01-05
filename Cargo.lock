@@ -2838,6 +2838,7 @@ dependencies = [
  "public-ip",
  "rayon",
  "serde",
+ "server",
  "tobj",
  "wgpu",
  "wgpu_glyph",

@@ -51,6 +51,8 @@ pub struct RenderPipeline {
 
     buffers: Buffers,
 
+    instanced: bool,
+
     context: Rc<RenderContext>
 }
 
@@ -59,7 +61,10 @@ impl RenderPipeline {
 
     pub fn vertices<V: Vertex> (&mut self, vertices: &[V])  { self.buffers.vertices(vertices, &self.context)   }
     pub fn indices             (&mut self, indices: &[u32]) { self.buffers.indices(indices, &self.context)     }
-    pub fn instances<I: Vertex>(&mut self, instances: &[I]) { self.buffers.instances(instances, &self.context) }
+    pub fn instances<I: Vertex>(&mut self, instances: &[I]) {
+        assert!(self.instanced, "Trying to set instances on a pipeline that isn't instanced");
+        self.buffers.instances(instances, &self.context) 
+    }
 }
 
 //temporary
@@ -118,11 +123,18 @@ impl RenderPipeline {
 }
 
 impl RenderPipeline {
+    pub fn new<V: Vertex>(descriptor: RenderPipelineDescriptor, api: &RenderApi) -> Self {
+        let vertex_buffer_layouts = &[V::desc()];
+        Self::create(descriptor, vertex_buffer_layouts, false, api)
+    }
 
+    pub fn new_instanced<V: Vertex, I: Vertex>(descriptor: RenderPipelineDescriptor, api: &RenderApi) -> Self {
+        let vertex_buffer_layouts = &[V::desc(), I::desc()];
+        println!("{:?}", vertex_buffer_layouts);
+        Self::create(descriptor, vertex_buffer_layouts, true, api)
+    }
 
-    pub fn new<T>(descriptor: RenderPipelineDescriptor, api: &RenderApi) -> Self
-    where
-        T: Vertex
+    pub fn create(descriptor: RenderPipelineDescriptor, vertex_buffer_layouts: &[wgpu::VertexBufferLayout], instanced: bool, api: &RenderApi) -> Self
     {
         let shader = Shader::new(descriptor.shader, api.render_context.clone());
 
@@ -164,7 +176,7 @@ impl RenderPipeline {
                 vertex: wgpu::VertexState {
                     module: shader.module(),
                     entry_point: shader.vs_entry_point(),
-                    buffers: &[T::desc()],
+                    buffers: vertex_buffer_layouts,
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: shader.module(),
@@ -200,6 +212,7 @@ impl RenderPipeline {
             pipeline,
 
             buffers: Buffers::default(),
+            instanced,
 
             context: api.render_context.clone()
         }

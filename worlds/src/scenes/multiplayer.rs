@@ -17,7 +17,9 @@ use crate::core::Event;
 use crate::core::Window;
 
 use std::io::stdin;
+use std::mem;
 use std::rc::Rc;
+use std::thread;
 
 //define a vert that just has a position
 pub use crate::graphics::wgsl_types::Vec3;
@@ -44,6 +46,56 @@ impl Vertex for Vert {
     }
 }
 
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
+pub struct Instance {
+    model: [[f32; 4]; 4],
+}
+
+impl From<app::Transform> for Instance {
+    fn from(transform: app::Transform) -> Self {
+        Self {
+            model: (cgmath::Matrix4::from_translation(transform.position.into())/* * cgmath::Matrix4::from(transform.rotation)*/).into(),
+        }
+    }
+}
+
+impl Vertex for Instance {
+    fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        wgpu::VertexBufferLayout {
+            array_stride: std::mem::size_of::<Instance>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    // While our vertex shader only uses locations 0, and 1 now, in later tutorials we'll
+                    // be using 2, 3, and 4, for Vertex. We'll start at slot 5 not conflict with them later
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                // A mat4 takes up 4 vertex slots as it is technically 4 vec4s. We need to define a slot
+                // for each vec4. We'll have to reassemble the mat4 in
+                // the shader.
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 8]>() as wgpu::BufferAddress,
+                    shader_location: 3,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
+                    shader_location: 4,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+            ],
+        }
+    }
+}
+
 pub struct Multiplayer {
     //logic stuff
     camera: Camera,
@@ -60,7 +112,7 @@ pub struct Multiplayer {
 impl Scene for Multiplayer {
     fn new(window: Rc<Window>, api: &RenderApi) -> Self {
         let mut pipeline =
-            api.create_render_pipeline::<Vert>(RenderPipelineDescriptor {
+            api.create_instanced_render_pipeline::<Vert, Instance>(RenderPipelineDescriptor {
                 attachment_accesses: vec![AttachmentAccess {
                     clear_color: Some([0f64; 4]),
                     attachment: Attachment::Swapchain,
@@ -95,7 +147,16 @@ impl Scene for Multiplayer {
         let mut input = String::new();
         stdin().read_line(&mut input).unwrap();
         input = input.trim().to_string();
-        let client_agent = open_connection::<Vec<app::ClientEvent>, app::Snapshot>(&input).expect("Failed to create a client agent");
+
+        let ip = if input.len() == 0 {
+            //spawn a server thread
+            thread::spawn(|| {
+                server::Server::new(30).run().expect("Failed to run the server");
+            });
+            "127.0.0.1"
+            
+        } else { &input };
+        let client_agent = open_connection::<Vec<app::ClientEvent>, app::Snapshot>(ip).expect("Failed to create a client agent");
 
         Self {
             camera,
@@ -140,12 +201,15 @@ impl Scene for Multiplayer {
                         }
                     })
                     .collect();
-
             }
         }
     }
 
     fn render(&mut self, surface_view: &wgpu::TextureView, render_api: &RenderApi) {
+
+        let instance_buffer: Vec<Instance> = self.other_transforms.iter().map(|i| {Instance::from(i.clone())}).collect();
+
+        self.pipeline.instances(&instance_buffer);
 
         let model_matrix = if let Some(other_transform) = &self.other_transforms.get(0) {
             cgmath::Matrix4::from_translation(other_transform.position.into())
@@ -153,7 +217,7 @@ impl Scene for Multiplayer {
             cgmath::Matrix4::one()
         };
 
-        let combined_matrix = self.camera.combined_matrix() * model_matrix;
+        let combined_matrix = self.camera.combined_matrix();
         let combined_matrix_data: [[f32; 4]; 4] = combined_matrix.clone().into();
 
         self.pipeline
