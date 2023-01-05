@@ -7,34 +7,62 @@ use super::Texture;
 use crate::core::Window; 
 
 pub struct Surface {
-    pub surface: wgpu::Surface,
-    pub config: wgpu::SurfaceConfiguration,
-}
-
-impl Surface {
-    pub fn get_current_texture(&self) -> Result<wgpu::SurfaceTexture, wgpu::SurfaceError> {
-        self.surface.get_current_texture()
-    }
+    pub(super) surface: wgpu::Surface,
+    pub(super) config: wgpu::SurfaceConfiguration,
 }
 
 pub struct RenderContext {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-}
-
-impl RenderContext {
-    pub fn device(&self) -> &wgpu::Device { &self.device }
-    pub fn queue(&self) -> &wgpu::Queue   { &self.queue  }
+    pub(super) device: wgpu::Device,
+    pub(super) queue: wgpu::Queue,
 }
 
 pub struct RenderApi {
-    pub render_context: Rc<RenderContext>,
-    pub surface: Rc<RefCell<Surface>>,
+    pub(super) render_context: Rc<RenderContext>,
+    pub(super) surface: Rc<RefCell<Surface>>,
 }
 
 impl RenderApi {
     pub fn context(&self) -> &RenderContext { self.render_context.as_ref() }
     pub fn surface(&self) -> Ref<Surface>   { self.surface.borrow()        }
+}
+
+impl RenderApi {
+    pub fn create_texture<T>(&self, width: u32, height: u32, texture_format: wgpu::TextureFormat) -> Texture {
+        Texture::new::<T>(width, height, texture_format, self.render_context.clone())
+    }
+
+    pub fn _load_texture(&self, file: &str) -> Texture {
+        Texture::load(file, self.render_context.clone())
+    }
+    
+    pub fn create_render_pipeline<T>(&self, descriptor: RenderPipelineDescriptor) -> RenderPipeline 
+    where
+        T: Vertex
+    {
+        RenderPipeline::new::<T>(descriptor, self)
+    }
+}
+
+impl RenderApi {
+    pub fn resize(&mut self, new_size: (u32, u32)) {
+        self.surface.borrow_mut().config.width = new_size.0;
+        self.surface.borrow_mut().config.height = new_size.1;
+        self.surface().surface.configure(&self.render_context.device, &self.surface().config);
+    }
+
+    pub fn get_current_texture(&self) -> Result<wgpu::SurfaceTexture, wgpu::SurfaceError> {
+        self.surface.borrow().surface.get_current_texture()
+    }
+
+    pub fn begin_render(&self) -> wgpu::CommandEncoder {
+        self.render_context.device.create_command_encoder(&wgpu::CommandEncoderDescriptor { 
+            label: Some("Triangle Encoder")
+        })
+    }
+
+    pub fn end_render(&self, encoder: wgpu::CommandEncoder) {
+        self.render_context.queue.submit(std::iter::once(encoder.finish()));
+    }
 }
 
 impl RenderApi {
@@ -85,26 +113,5 @@ impl RenderApi {
                 queue
             })
         } 
-    }
-
-    pub fn create_texture<T>(&self, width: u32, height: u32, texture_format: wgpu::TextureFormat) -> Texture {
-        Texture::new::<T>(width, height, texture_format, self.context())
-    }
-
-    pub fn load_texture(&self, file: &str) -> Texture {
-        Texture::load(file, self.context())
-    }
-    
-    pub fn create_render_pipeline_with_vertex<T>(&self, descriptor: RenderPipelineDescriptor) -> RenderPipeline 
-    where
-        T: Vertex
-    {
-        RenderPipeline::new_with_vertex::<T>(descriptor, self)
-    }
-
-    pub fn resize(&mut self, new_size: (u32, u32)) {
-        self.surface.borrow_mut().config.width = new_size.0;
-        self.surface.borrow_mut().config.height = new_size.1;
-        self.surface().surface.configure(&self.render_context.device, &self.surface().config);
     }
 }

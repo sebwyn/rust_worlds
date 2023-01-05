@@ -44,7 +44,7 @@ impl Vertex for Vert {
     }
 }
 
-pub struct Polygons {
+pub struct Multiplayer {
     //logic stuff
     camera: Camera,
     other_transforms: Vec<app::Transform>,
@@ -57,10 +57,10 @@ pub struct Polygons {
     client_agent: Option<Agent<Vec<app::ClientEvent>, app::Snapshot>>,
 }
 
-impl Polygons {
-    pub fn new(window: Rc<Window>, api: &RenderApi) -> Self {
+impl Scene for Multiplayer {
+    fn new(window: Rc<Window>, api: &RenderApi) -> Self {
         let mut pipeline =
-            api.create_render_pipeline_with_vertex::<Vert>(RenderPipelineDescriptor {
+            api.create_render_pipeline::<Vert>(RenderPipelineDescriptor {
                 attachment_accesses: vec![AttachmentAccess {
                     clear_color: Some([0f64; 4]),
                     attachment: Attachment::Swapchain,
@@ -84,9 +84,9 @@ impl Polygons {
             let vertices: Vec<Vert> = mesh.positions.chunks_exact(3).map(|positions| {
                 Vert { position: Vec3 { x: positions[0], y: positions[1], z: positions[2] }}
             }).collect();
-
-            pipeline.set_vertices(&vertices);
-            pipeline.set_indices(&mesh.indices);
+            
+            pipeline.vertices(&vertices);
+            pipeline.indices(&mesh.indices);
         }
 
         let event_factory = ClientEventFactory::new(window);
@@ -108,9 +108,6 @@ impl Polygons {
             client_agent: Some(client_agent),
         }
     }
-}
-
-impl Scene for Polygons {
     //this update just serves as a camera controller right now
     fn update(&mut self, events: &[Event]) {
         self.camera.update(events);
@@ -148,7 +145,7 @@ impl Scene for Polygons {
         }
     }
 
-    fn render(&mut self, surface_view: &wgpu::TextureView) {
+    fn render(&mut self, surface_view: &wgpu::TextureView, render_api: &RenderApi) {
 
         let model_matrix = if let Some(other_transform) = &self.other_transforms.get(0) {
             cgmath::Matrix4::from_translation(other_transform.position.into())
@@ -164,6 +161,8 @@ impl Scene for Polygons {
             .set_uniform(&self.view_matrix_binding, combined_matrix_data)
             .unwrap();
 
-        self.pipeline.render(surface_view);
+        let mut encoder = render_api.begin_render();
+        self.pipeline.render(surface_view, &mut encoder);
+        render_api.end_render(encoder)
     }
 }

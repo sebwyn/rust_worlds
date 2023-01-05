@@ -89,7 +89,7 @@ impl Shader {
 
         //create our shader module 
         let module = 
-            context.device()
+            context.device
             .create_shader_module(wgpu::ShaderModuleDescriptor {
                 label: Some(shader_name),
                 source: wgpu::ShaderSource::Wgsl(Cow::from(&shader_source)),
@@ -117,11 +117,11 @@ impl Shader {
                             size: uniform.size.unwrap()
                         });
                     }
-                    groups.push(Group::Uniform(UniformGroup::new(context.device(), shader_name, uniform_group)));
+                    groups.push(Group::Uniform(UniformGroup::new(&context.device, shader_name, uniform_group)));
                 },
                 GroupDescriptor::Texture(texture_group) => {
                     let index = texture_group.index;
-                    let new_group = TextureGroup::new(context.device(), texture_group);
+                    let new_group = TextureGroup::new(&context.device, texture_group);
                     texture_bindings.insert(String::from(new_group.name()), TextureBinding { group: index });
                     
                     groups.push(Group::Texture(new_group));
@@ -160,7 +160,7 @@ impl Shader {
             );
 
             let uniform_buffer = uniform_group.buffers.get(binding.binding as usize).ok_or(())?;
-            self.context.queue().write_buffer(uniform_buffer, 0, bytemuck::cast_slice(&[value]));
+            self.context.queue.write_buffer(uniform_buffer, 0, bytemuck::cast_slice(&[value]));
 
             Ok(())
         } else {
@@ -176,7 +176,7 @@ impl Shader {
     {
         let texture_group = self.groups.get_mut(binding.group as usize).ok_or(())?;
         if let Group::Texture(texture_group) = texture_group {
-            texture_group.update_texture(texture, sampler, self.context.device());
+            texture_group.update_texture(texture, sampler, &self.context.device);
             Ok(())
         } else {
             Err(())

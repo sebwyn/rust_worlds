@@ -1,5 +1,5 @@
-use worlds::App;
+use worlds::{App, Voxels, Multiplayer};
 
 fn main() {
-    App::run()
+    App::<Multiplayer>::run()
 }

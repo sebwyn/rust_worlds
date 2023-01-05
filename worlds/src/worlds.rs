@@ -1,16 +1,13 @@
 use crate::core::{EventSystem, Scene, Window};
 use crate::graphics::RenderApi;
 
-use crate::scenes::Polygons;
-use crate::Voxels;
-
 use std::{rc::Rc, time::Instant};
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
 };
 
-pub struct App {
+pub struct App<SceneType> {
     _width: u32,
     _height: u32,
 
@@ -20,13 +17,15 @@ pub struct App {
     last_frame: Instant,
 
     events: EventSystem,
-    voxels: Voxels,
-    polygons: Polygons,
 
+    scene: SceneType,
 }
 
-impl App {
-    fn new(event_loop: &winit::event_loop::EventLoop<()>) -> Self {
+impl<SceneType: Scene + 'static> App<SceneType> {
+    fn new(event_loop: &winit::event_loop::EventLoop<()>) -> Self 
+    where 
+        SceneType: Scene
+    {
         env_logger::init();
 
         let width = 800;
@@ -39,8 +38,8 @@ impl App {
         let events = EventSystem::new();
 
         //initialize our scene
-        let voxels = Voxels::new(window.clone(), &api, width, height);
-        let polygons = Polygons::new(window.clone(), &api);
+        let scene = SceneType::new(window.clone(), &api);
+        //let polygons = Polygons::new(window.clone(), &api);
 
         let last_frame = Instant::now();
 
@@ -53,15 +52,15 @@ impl App {
             last_frame,
 
             events,
-            voxels,
-            polygons,
+            scene,
+            //polygons,
         }
     }
 
     pub fn update(&mut self) {
         let events = self.events.emit();
-        self.polygons.update(&events);
-        //self.voxels.update(&events);
+        //self.polygons.update(&events);
+        self.scene.update(&events);
     }
 
     fn resize(&mut self, new_size: (u32, u32)) {
@@ -75,13 +74,13 @@ impl App {
         self.last_frame = Instant::now();
 
         //update the tex offset to move in a circle
-        let current_texture = self.api.surface().get_current_texture().unwrap();
+        let current_texture = self.api.get_current_texture().unwrap();
         let current_texture_view = current_texture
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        //self.voxels.render(&current_texture_view);
-        self.polygons.render(&current_texture_view);
+        self.scene.render(&current_texture_view, &self.api);
+        //self.polygons.render(&current_texture_view);
 
         current_texture.present();
     }

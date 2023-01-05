@@ -49,7 +49,6 @@ struct Voxel {
     exists: bool
 }
 
-
 pub struct Voxels {
     //logic stuff
     camera: Camera,
@@ -84,9 +83,14 @@ impl Voxels {
             Voxel { exists: false }
         }
     }
+}
 
-    pub fn new(window: Rc<Window>, api: &RenderApi, width: u32, height: u32) -> Self {
-        let mut pipeline = api.create_render_pipeline_with_vertex::<Vert>(RenderPipelineDescriptor { 
+impl Scene for Voxels {
+    fn new(window: Rc<Window>, api: &RenderApi) -> Self {
+        let width = window.winit_window().inner_size().width as f32;
+        let height = window.winit_window().inner_size().height as f32;
+
+        let mut pipeline = api.create_render_pipeline::<Vert>(RenderPipelineDescriptor { 
             attachment_accesses: vec![
                 AttachmentAccess {
                     clear_color: Some([0f64; 4]),
@@ -99,8 +103,8 @@ impl Voxels {
             primitive: RenderPrimitive::Triangles,
         });
 
-        pipeline.set_vertices(&Self::VERTICES);
-        pipeline.set_indices(&Self::INDICES);
+        pipeline.vertices(&Self::VERTICES);
+        pipeline.indices(&Self::INDICES);
 
         let dimensions: (u32, u32, u32) = (32, 32, 32);
 
@@ -120,19 +124,29 @@ impl Voxels {
 
         //generate a texture from
         let texture = api.create_texture::<u32>(dimensions.0, dimensions.1, wgpu::TextureFormat::R32Uint);
-        texture.write_buffer(to_byte_slice(voxels.as_slice()), api.context().queue());
-        let voxel_texture_binding = pipeline.shader().get_texture_binding("voxel_data").expect("Can't find voxel shader binding!");
+        texture.write_buffer(to_byte_slice(voxels.as_slice()));
+        let voxel_texture_binding = pipeline.shader()
+            .get_texture_binding("voxel_data")
+            .expect("Can't find voxel shader binding!");
         pipeline.shader().update_texture(&voxel_texture_binding, &texture, None).expect("Failed to set voxels in a texture group!");
 
         //set our render uniforms
-        let resolution_binding = pipeline.shader().get_uniform_binding("resolution").expect("Can't find resolution uniform in voxel shader!");
+        let resolution_binding = pipeline.shader()
+            .get_uniform_binding("resolution")
+            .expect("Can't find resolution uniform in voxel shader!");
         pipeline.shader().set_uniform(&resolution_binding, Vec2 { x: width as f32, y: height as f32 }).expect("failed to set uniform resolution");
 
-        let near_binding = pipeline.shader().get_uniform_binding("near").expect("Can't find near uniform in voxel shader!");
+        let near_binding = pipeline.shader()
+            .get_uniform_binding("near")
+            .expect("Can't find near uniform in voxel shader!");
         pipeline.shader().set_uniform(&near_binding, 1f32).expect("failed to set uniform near!");
 
-        let camera_position_binding = pipeline.shader().get_uniform_binding("camera_position").expect("Can't find near camera position uniform in voxel shader!");
-        let view_matrix_binding = pipeline.shader().get_uniform_binding("view_matrix").expect("Can't find near view direction uniform in voxel shader!");
+        let camera_position_binding = pipeline.shader()
+            .get_uniform_binding("camera_position")
+            .expect("Can't find near camera position uniform in voxel shader!");
+        let view_matrix_binding = pipeline.shader()
+            .get_uniform_binding("view_matrix")
+            .expect("Can't find near view direction uniform in voxel shader!");
 
         let camera = Camera::new(window);
 
@@ -143,16 +157,12 @@ impl Voxels {
             view_matrix_binding,
         }
     }
-
-}
-
-impl Scene for Voxels {
     //this update just serves as a camera controller right now
     fn update(&mut self, events: &[Event]) {
         self.camera.update(events);
     }
 
-    fn render(&mut self, surface_view: &wgpu::TextureView) {
+    fn render(&mut self, surface_view: &wgpu::TextureView, render_api: &RenderApi) {
         let mut transposed_view_matrix = self.camera.view_matrix().clone();
         transposed_view_matrix.transpose_self(); 
         let view_matrix_data: [[f32; 4]; 4] = transposed_view_matrix.into();
@@ -160,7 +170,8 @@ impl Scene for Voxels {
         self.pipeline.shader().set_uniform(&self.camera_position_binding, *self.camera.position()).unwrap();
         self.pipeline.shader().set_uniform(&self.view_matrix_binding, view_matrix_data).unwrap();
 
-
-        self.pipeline.render(surface_view);
+        let mut encoder = render_api.begin_render();
+        self.pipeline.render(surface_view, &mut encoder);
+        render_api.end_render(encoder)
     }
 }

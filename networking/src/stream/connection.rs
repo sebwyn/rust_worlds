@@ -106,10 +106,6 @@ impl Connection {
         let mut packet_bytes = serialize(&header).unwrap();
         packet_bytes.extend_from_slice(bytes);
 
-        // let header_len = packet_bytes.len();
-        // packet_bytes.resize(packet_bytes.len() + bytes.len(), 0u8);
-        // packet_bytes[header_len..].copy_from_slice(bytes);
-
         self.socket.send_to(&packet_bytes, self.client_address)?;
 
         self.sequence = self.sequence.wrapping_add(1);

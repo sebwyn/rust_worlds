@@ -1,8 +1,8 @@
 use super::RenderContext;
 
-use std::fs::File;
-use std::mem::size_of;
-use std::io::Read;
+use std::{mem::size_of, rc::Rc};
+
+use crate::util::files;
 
 pub struct Sampler {
     sampler: wgpu::Sampler
@@ -36,7 +36,8 @@ pub struct Texture {
     bytes_per_pixel: u32,
 
     texture: wgpu::Texture,
-    texture_view: wgpu::TextureView
+    texture_view: wgpu::TextureView,
+    render_context: Rc<RenderContext>
 }
 
 //think about if i want to make this abstract, with images, and buffers or some variation
@@ -47,22 +48,21 @@ impl Texture {
 
 impl Texture {
     //TODO: create a grpahics texture object, to wrap wgpu
-    pub fn new<T>(width: u32, height: u32, format: wgpu::TextureFormat, render_context: &RenderContext) -> Self {
+    pub fn new<T>(width: u32, height: u32, format: wgpu::TextureFormat, render_context: Rc<RenderContext>) -> Self {
         let bytes_per_pixel = size_of::<T>() as u32;
 
         Self::create(
             format,
             bytes_per_pixel,
             (width, height),
-            render_context.device(),
+            render_context,
         )
     }
 
-    pub fn load(file_path: &str, render_context: &RenderContext) -> Self {
+    pub fn load(file_path: &str, render_context: Rc<RenderContext>) -> Self {
         
-        let t_bytes_vec = load_file_bytes(file_path);
-        let texture_bytes = t_bytes_vec.as_slice();
-        let texture_image = image::load_from_memory(texture_bytes).unwrap();
+        let t_bytes_vec = files::load_file_bytes(file_path);
+        let texture_image = image::load_from_memory(&t_bytes_vec).unwrap();
         let texture_rgba = texture_image.to_rgba8();
 
         let bytes_per_pixel = 4;
@@ -71,21 +71,21 @@ impl Texture {
             wgpu::TextureFormat::Rgba8UnormSrgb, 
             bytes_per_pixel,
             (texture_image.width(), texture_image.height()), 
-            render_context.device()
+            render_context
         );
 
-        texture.write_buffer(&texture_rgba, render_context.queue());
+        texture.write_buffer(&texture_rgba);
         texture
     }
 
-    fn create(format: wgpu::TextureFormat, bytes_per_pixel: u32, dimensions: (u32, u32), device: &wgpu::Device) -> Self {
+    fn create(format: wgpu::TextureFormat, bytes_per_pixel: u32, dimensions: (u32, u32), render_context: Rc<RenderContext>) -> Self {
         let extent = wgpu::Extent3d {
             width: dimensions.0,
             height: dimensions.1,
             depth_or_array_layers: 1,
         };
 
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
+        let texture = render_context.device.create_texture(&wgpu::TextureDescriptor {
             size: extent,
             mip_level_count: 1,
             sample_count: 1,
@@ -104,12 +104,13 @@ impl Texture {
             bytes_per_pixel,
             
             texture,
-            texture_view
+            texture_view,
+            render_context
         }
     }
 
-    pub fn write_buffer(&self, buffer: &[u8], queue: &wgpu::Queue) {
-        queue.write_texture(
+    pub fn write_buffer(&self, buffer: &[u8]) {
+        self.render_context.queue.write_texture(
             wgpu::ImageCopyTexture {
                 texture: &self.texture,
                 mip_level: 0,
@@ -125,16 +126,4 @@ impl Texture {
             self.extent,
         );
     }
-}
-
-
-
-fn load_file_bytes(path: &str) -> Vec<u8> {
-    let mut f = File::open(path).expect("no file found");
-    let metadata = std::fs::metadata(path).expect("unable to read metadata");
-
-    let mut buffer = vec![0; metadata.len() as usize];
-    f.read(&mut buffer).expect("buffer overflow");
-
-    buffer
 }
