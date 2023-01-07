@@ -49,7 +49,7 @@ impl UiRenderer {
         pipeline.vertices(&Self::VERTICES);
         pipeline.indices(&Self::INDICES);
 
-        let font_map = Font::new("verdana_sdf.fnt").unwrap();
+        let font_map = Font::new("resources/verdana_sdf.fnt").unwrap();
         let font_texture= render_api.load_texture(&font_map.image_path);
 
         let texture_binding = pipeline.shader().get_texture_binding("font").unwrap();

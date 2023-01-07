@@ -132,7 +132,7 @@ impl Scene for Multiplayer {
 
         let camera = Camera::new(window.clone());
 
-        if let Ok(obj) = tobj::load_obj("cube.obj", &tobj::LoadOptions::default()) {
+        if let Ok(obj) = tobj::load_obj("resources/cube.obj", &tobj::LoadOptions::default()) {
             let mesh = &obj.0[0].mesh;
             //load positions into verts
             let vertices: Vec<Vert> = mesh.positions.chunks_exact(3).map(|positions| {

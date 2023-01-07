@@ -1,4 +1,4 @@
-use worlds::{App, Voxels, Multiplayer, Ui};
+use worlds::{App, Ui};
 
 fn main() {
     App::<Ui>::run()

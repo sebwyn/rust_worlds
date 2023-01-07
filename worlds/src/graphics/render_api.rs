@@ -75,7 +75,7 @@ impl RenderApi {
         let size = window.size();
 
         // Possible backends: Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::Backends::DX12);
+        let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
         let surface = unsafe { instance.create_surface(window.winit_window()) };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
