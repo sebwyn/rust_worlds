@@ -4,7 +4,7 @@ use cgmath::{One, Point3, SquareMatrix, Vector3, Vector4};
 
 use crate::{
     core::{Event, Window},
-    graphics::wgsl_types::{Vec3, Vec2},
+    graphics::wgsl_types::Vec3,
 };
 
 pub struct Camera {
@@ -39,9 +39,6 @@ impl Camera {
     }
     pub fn position(&self) -> &Vec3 {
         &self.position
-    }
-    pub fn rotation(&self) -> Vec2 {
-        Vec2 { x: self.x_rotation, y: self.y_rotation }
     }
 }
 

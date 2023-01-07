@@ -27,7 +27,7 @@ impl Font {
         let is_correct_extension = file.extension().map_or(false, |v| v.to_str().map_or(false, |s| String::from(s) == "fnt"));
         assert!(is_correct_extension, "Trying to load a font of an unsupported type: only '.fnt' is supported!");
 
-        let fnt_file = fs::read_to_string(file).map_err(|e| "File does not exist")?;
+        let fnt_file = fs::read_to_string(file).map_err(|_| "File does not exist")?;
 
         let char_reg = regex::Regex::new(
             r"char id=(\d+)\s+x=(\d+)\s+y=(\d+)\s+width=(\d+)\s+height=(\d+)\s+xoffset=(-?\d+)\s+yoffset=(-?\d+)\s+xadvance=(\d+)\s+page=(\d+)\s+chnl=(\d+)"
@@ -39,7 +39,7 @@ impl Font {
         let image_file_name = &page_reg.captures(&fnt_file).unwrap()[1];
         let image_path = file.parent().unwrap().join(image_file_name);
 
-        let (image_width, image_height) = image::image_dimensions(&image_path).map_err(|e| "File does not exist")?;
+        let (image_width, image_height) = image::image_dimensions(&image_path).map_err(|_| "File does not exist")?;
 
         let mut characters = HashMap::new();
         for capture in captures {
