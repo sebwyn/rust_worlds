@@ -36,7 +36,7 @@ impl TextureGroup {
             ty: wgpu::BindingType::Texture {
                 multisampled: false,
                 view_dimension: dimensions,
-                sample_type: wgpu::TextureSampleType::Uint, //TODO: make this pull from whatever
+                sample_type: wgpu::TextureSampleType::Float { filterable: true }, //TODO: make this pull from whatever
                                                             //type the texture is
             },
             count: None,

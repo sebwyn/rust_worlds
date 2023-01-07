@@ -23,6 +23,7 @@ serde = "1.0.149"
 tobj = "3.2.3"
 local-ip-address = "0.4.9"
 public-ip = "0.2.2"
+regex = "1.7.0"
 
 [dependencies.app]
 path = "../app"

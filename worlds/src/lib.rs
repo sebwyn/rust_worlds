@@ -11,6 +11,7 @@ pub use scenes::Voxels;
 pub use scenes::Multiplayer;
 
 mod ui;
+pub use scenes::Ui;
 
 mod worlds;
-pub use worlds::App;
+pub use crate::worlds::App;

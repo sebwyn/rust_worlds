@@ -1,7 +1,7 @@
 use std::rc::Rc;
 use std::cell::{Ref, RefCell};
 
-use super::{RenderPipeline, RenderPipelineDescriptor, Vertex};
+use super::{RenderPipeline, RenderPipelineDescriptor, Vertex, Sampler};
 use super::Texture;
 
 use crate::core::Window; 
@@ -31,8 +31,12 @@ impl RenderApi {
         Texture::new::<T>(width, height, texture_format, self.render_context.clone())
     }
 
-    pub fn _load_texture(&self, file: &str) -> Texture {
+    pub fn load_texture(&self, file: &str) -> Texture {
         Texture::load(file, self.render_context.clone())
+    }
+
+    pub fn create_sampler(&self) -> Sampler {
+        Sampler::new(&self.render_context.device)
     }
     
     pub fn create_render_pipeline<V: Vertex>(&self, descriptor: RenderPipelineDescriptor) -> RenderPipeline {
