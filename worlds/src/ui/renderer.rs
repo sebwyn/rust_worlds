@@ -7,12 +7,13 @@ use super::font::Font;
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct Vert { 
-    pub position: [f32; 2] 
+    pub position: [f32; 2],
+    pub tex_coord: [f32; 2] 
 }
 
 impl Vert {
-    const ATTRIBS: [wgpu::VertexAttribute; 1] =
-        wgpu::vertex_attr_array![0 => Float32x2];
+    const ATTRIBS: [wgpu::VertexAttribute; 2] =
+        wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2];
 }
 
 impl Vertex for Vert {
@@ -63,33 +64,33 @@ impl Vertex for Instance {
             attributes: &[
                 wgpu::VertexAttribute {
                     offset: 0,
-                    shader_location: 1,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 2,
                     format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 3,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 6]>() as wgpu::BufferAddress,
+                    shader_location: 4,
                     format: wgpu::VertexFormat::Float32x4,
                 },
 
                 wgpu::VertexAttribute {
                     offset: mem::size_of::<[f32; 9]>() as wgpu::BufferAddress,
-                    shader_location: 4,
-                    format: wgpu::VertexFormat::Float32x4,
-                },
-                wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
                     shader_location: 5,
                     format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 15]>() as wgpu::BufferAddress,
+                    offset: mem::size_of::<[f32; 12]>() as wgpu::BufferAddress,
                     shader_location: 6,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 15]>() as wgpu::BufferAddress,
+                    shader_location: 7,
                     format: wgpu::VertexFormat::Float32x4,
                 },
             ],
@@ -104,18 +105,21 @@ pub struct UiRenderer {
 }
 
 impl UiRenderer {
-    pub fn push_char(&mut self, c: char, x: u32, y: u32) {
-        if let Some(font_character) = self.font.get_character(c) {
-            let transform = Transform2d { 
-                position: [x as f32, y as f32], 
-                scale: [font_character.width as f32, font_character.height as f32], 
-                rotation: 0.0,
+    pub fn put_string(&mut self, text: &str, mut x: u32, y: u32) {
+        for c in text.as_bytes().iter() {
+            if let Some(font_character) = self.font.get_character(*c as char) {
+                let transform = Transform2d { 
+                    position: [(x as i32 + font_character.offset_x) as f32, (y as i32 - font_character.offset_y - font_character.height as i32 - 40) as f32], 
+                    scale: [font_character.width as f32, font_character.height as f32], 
+                    rotation: 0.0,
 
-                tex_position: [font_character.tex_x, font_character.tex_y],
-                tex_scale: [font_character.tex_width, font_character.tex_height]
-            };
+                    tex_position: [font_character.tex_x, font_character.tex_y],
+                    tex_scale: [font_character.tex_width, font_character.tex_height]
+                };
 
-            self.instances.push(Instance::from(transform.clone()));
+                self.instances.push(Instance::from(transform.clone()));
+                x += font_character.advance;
+            }
         }
     }
 }
@@ -123,10 +127,10 @@ impl UiRenderer {
 impl UiRenderer {
     const INDICES: [u32; 6] = [ 0, 1, 2, 3, 2, 1];
     const VERTICES: [Vert; 4] = [ 
-        Vert { position: [  0f32,  0f32 ]},
-        Vert { position: [  1f32,  0f32 ]},
-        Vert { position: [  0f32,  1f32 ]},
-        Vert { position: [  1f32,  1f32 ]},
+        Vert { position: [  0f32,  0f32 ], tex_coord: [ 0f32, 1f32 ]},
+        Vert { position: [  1f32,  0f32 ], tex_coord: [ 1f32, 1f32 ]},
+        Vert { position: [  0f32,  1f32 ], tex_coord: [ 0f32, 0f32 ]},
+        Vert { position: [  1f32,  1f32 ], tex_coord: [ 1f32, 0f32 ]},
     ];
 
     pub fn new(render_api: &RenderApi) -> Self {

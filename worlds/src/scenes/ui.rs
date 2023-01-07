@@ -37,9 +37,7 @@ impl Scene for Ui {
         }
 
 
-        for (i, c) in self.text.as_bytes().iter().enumerate() {
-            self.ui.push_char(*c as char, i as u32 * 20, 300);
-        }
+        self.ui.put_string(&self.text, 0, 300);
     }
 
     fn render(&mut self, surface_view: &wgpu::TextureView, render_api: &RenderApi) {       

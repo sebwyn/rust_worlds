@@ -4,7 +4,10 @@ use std::{collections::HashMap, path::Path, fs};
 pub(super) struct Character {
     pub tex_width: f32, pub tex_height: f32,
     pub tex_x: f32, pub tex_y: f32,
+
+    pub offset_x: i32, pub offset_y: i32,
     pub width: u32, pub height: u32,
+    pub advance: u32,
 }
 
 #[derive(Debug)]
@@ -27,7 +30,7 @@ impl Font {
         let fnt_file = fs::read_to_string(file).map_err(|e| "File does not exist")?;
 
         let char_reg = regex::Regex::new(
-            r"char id=(\d+)\s+x=(\d+)\s+y=(\d+)\s+width=(\d+)\s+height=(\d+)\s+xoffset=(-?\d+)\s+yoffset=(-?\d+)\s+xadvance=(-?\d+)\s+page=(\d+)\s+chnl=(\d+)"
+            r"char id=(\d+)\s+x=(\d+)\s+y=(\d+)\s+width=(\d+)\s+height=(\d+)\s+xoffset=(-?\d+)\s+yoffset=(-?\d+)\s+xadvance=(\d+)\s+page=(\d+)\s+chnl=(\d+)"
         ).unwrap();
         
         let captures = char_reg.captures_iter(&fnt_file);
@@ -47,20 +50,20 @@ impl Font {
 
             let width = capture[4].parse::<u32>().unwrap();
             let height = capture[5].parse::<u32>().unwrap();
-            /*
-            let _xoffset = capture[1].parse::<i32>().unwrap();
-            let _yoffset = capture[1].parse::<i32>().unwrap();
-            let _xadvance = capture[1].parse::<i32>().unwrap();
+            
+            let offset_x = capture[6].parse::<i32>().unwrap();
+            let offset_y = capture[7].parse::<i32>().unwrap();
+            let advance = capture[8].parse::<u32>().unwrap();
             let _page = capture[1].parse::<i32>().unwrap();
             let _chnl = capture[1].parse::<i32>().unwrap();
-            */
+            
             let tex_x = x as f32 / image_width as f32;
             let tex_y = y as f32 / image_height as f32;
 
             let tex_width = width as f32 / image_width as f32;
             let tex_height = height as f32 / image_height as f32;
 
-            let character = Character { width, height, tex_x, tex_y, tex_width, tex_height};
+            let character = Character { width, height, tex_x, tex_y, tex_width, tex_height, offset_x, offset_y, advance};
             characters.insert(id, character);
         }
 
