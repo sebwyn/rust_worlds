@@ -98,7 +98,7 @@ impl Vertex for Instance {
     }
 }
 
-pub struct Multiplayer {
+pub struct World {
     //logic stuff
     camera: Camera,
     other_transforms: Vec<app::Transform>,
@@ -111,7 +111,7 @@ pub struct Multiplayer {
     client_agent: Option<Agent<Vec<app::ClientEvent>, app::Snapshot>>,
 }
 
-impl Scene for Multiplayer {
+impl Scene for World {
     fn new(window: Rc<Window>, api: &RenderApi) -> Self {
         let mut pipeline =
             api.create_instanced_render_pipeline::<Vert, Instance>(RenderPipelineDescriptor {
