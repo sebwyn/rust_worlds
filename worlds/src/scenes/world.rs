@@ -184,8 +184,8 @@ impl Scene for World {
             }
 
             if events.len() > 0 {
-                client_agent.send_message(events.iter().map(|event| {
-                    self.event_factory.create(event) 
+                client_agent.send_message(events.iter().filter_map(|event| {
+                    self.event_factory.create(event)
                 }).collect());
             }
             

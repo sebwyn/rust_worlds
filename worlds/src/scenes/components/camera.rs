@@ -94,7 +94,7 @@ impl Camera {
 
         for event in events {
             match event {
-                Event::KeyPressed(key) => {
+                Event::KeyPressed(key, _) => {
                     use winit::event::VirtualKeyCode;
                     match key {
                         VirtualKeyCode::S => self.position = self.position - Vec3::from(forward),
@@ -123,7 +123,7 @@ impl Camera {
                         _ => {}
                     }
                 }
-                Event::KeyReleased(_) => {}
+                Event::KeyReleased(..) => {}
                 Event::MousePressed((_, _position)) => {}
                 Event::MouseReleased((_, _position)) => {}
                 Event::CursorMoved(position) if self.rotation_enabled => {

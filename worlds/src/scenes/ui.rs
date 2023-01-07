@@ -17,20 +17,21 @@ impl Scene for Ui {
     fn new(window: Rc<Window>, api: &RenderApi) -> Self {
         Ui { 
             ui: UiRenderer::new(api),
-            text: "Hello World".to_string()
+            text: "Hello World".to_string(),
         }
     }
 
     fn update(&mut self, events: &[Event]) {
-        for event in events.iter() {
-            if let Event::KeyPressed(key) = event {
-                let code = *key as u8;
-                if 10 <= code && code as u8 <= 35 {
-                    let ascii = code + 87;
-                    self.text.push(ascii as char);
-                }
+        for event in events.iter() {        
+            if let Event::KeyPressed(key, _) = event {
                 
-                if *key == VirtualKeyCode::Back {
+                if let Some(c) = event.get_character() {
+                    self.text.push(c);
+                }
+
+                if *key == VirtualKeyCode::Tab {
+                    self.text += "    ";
+                } else if *key == VirtualKeyCode::Back {
                     self.text.pop();
                 }
             }
@@ -38,6 +39,8 @@ impl Scene for Ui {
 
 
         self.ui.put_string(&self.text, 0, 300);
+
+        self.ui.update(events);
     }
 
     fn render(&mut self, surface_view: &wgpu::TextureView, render_api: &RenderApi) {       

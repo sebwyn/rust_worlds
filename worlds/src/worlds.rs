@@ -111,6 +111,7 @@ impl<SceneType: Scene + 'static> App<SceneType> {
                     } => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(new_size) => {
                         app.resize((new_size.width, new_size.height));
+                        app.events.resize((new_size.width, new_size.height));
                     }
                     e => {
                         app.events.handle_event(e);

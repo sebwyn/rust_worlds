@@ -130,7 +130,6 @@ impl RenderPipeline {
 
     pub fn new_instanced<V: Vertex, I: Vertex>(descriptor: RenderPipelineDescriptor, api: &RenderApi) -> Self {
         let vertex_buffer_layouts = &[V::desc(), I::desc()];
-        println!("{:?}", vertex_buffer_layouts);
         Self::create(descriptor, vertex_buffer_layouts, true, api)
     }
 

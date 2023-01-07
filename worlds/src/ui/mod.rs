@@ -1,3 +1,5 @@
+mod render_structs;
+
 mod renderer;
 pub use renderer::UiRenderer;
 

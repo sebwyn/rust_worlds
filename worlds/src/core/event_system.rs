@@ -8,6 +8,8 @@ pub struct EventSystem {
     
     pub cursor_moved: bool,
     pub mouse_pos: (f64, f64),
+
+    modifiers: winit::event::ModifiersState,
 }
 
 impl EventSystem {
@@ -17,8 +19,14 @@ impl EventSystem {
             events: Vec::new(),
 
             cursor_moved: false,
-            mouse_pos: (0f64, 0f64)
+            mouse_pos: (0f64, 0f64),
+
+            modifiers: winit::event::ModifiersState::default(),
         }
+    }
+
+    pub fn resize(&mut self, dimensions: (u32, u32)) {
+        self.events.push(Event::WindowResized(dimensions))
     }
 
     pub fn handle_event(&mut self, event: &WindowEvent) {
@@ -29,10 +37,10 @@ impl EventSystem {
                 if let Some(keycode) = input.virtual_keycode {
                     match input.state {
                         winit::event::ElementState::Pressed => {
-                            Some(Event::KeyPressed(keycode))
+                            Some(Event::KeyPressed(keycode, self.modifiers))
                         },
                         winit::event::ElementState::Released => {
-                            Some(Event::KeyReleased(keycode))
+                            Some(Event::KeyReleased(keycode, self.modifiers))
                         },
                     }
                 } else {
@@ -64,6 +72,11 @@ impl EventSystem {
                         Some(Event::MouseReleased((*button, self.mouse_pos)))
                     }
                 }
+            },
+
+            WindowEvent::ModifiersChanged(m) => { 
+                self.modifiers = *m; 
+                None 
             },
             _ => None
         };
