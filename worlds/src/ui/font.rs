@@ -57,11 +57,11 @@ impl Font {
             let _page = capture[1].parse::<i32>().unwrap();
             let _chnl = capture[1].parse::<i32>().unwrap();
             
-            let tex_x = x as f32 / image_width as f32;
-            let tex_y = y as f32 / image_height as f32;
+            let tex_x = (x as f64 / image_width as f64) as f32;
+            let tex_y = (y as f64 / image_height as f64) as f32;
 
-            let tex_width = width as f32 / image_width as f32;
-            let tex_height = height as f32 / image_height as f32;
+            let tex_width = (width as f64 / image_width as f64) as f32;
+            let tex_height = (height as f64 / image_height as f64) as f32;
 
             let character = Character { width, height, tex_x, tex_y, tex_width, tex_height, offset_x, offset_y, advance};
             characters.insert(id, character);

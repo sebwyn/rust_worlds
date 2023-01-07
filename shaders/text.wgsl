@@ -51,5 +51,8 @@ fn vs_main(in: VertexInput, instance: InstanceInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return textureSample(font, s_font, in.tex_coord);
+    let smoothing: f32 = 1.0/16.0;
+    let distance = textureSample(font, s_font, in.tex_coord).a;
+    let alpha = smoothstep(0.5 - smoothing, 1.0, distance);
+    return vec4<f32>(vec3<f32>(1.0), 1.0 * alpha);
 }

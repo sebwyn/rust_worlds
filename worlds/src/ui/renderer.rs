@@ -11,11 +11,24 @@ pub struct UiRenderer {
 }
 
 impl UiRenderer {
-    pub fn put_string(&mut self, text: &str, mut x: u32, y: u32) {
+    pub fn put_text_box(&mut self, text: &str, x: u32, y: u32, width: u32, height: u32, color: [f32; 4], font_size: u32) {
+        self.put_rect(x, y, width, height, color);
+        
+    }
+
+    pub fn put_text(&mut self, text: &str, x: u32, y: u32, width: u32) {
+        let mut curr_x = x as f32;
+        let mut curr_y = y as f32;
+        
+        let line_height = 21.0;
         for c in text.as_bytes().iter() {
-            if let Some(font_character) = self.font.get_character(*c as char) {
+            let c = *c as char;
+            if let Some(font_character) = self.font.get_character(c) {
                 let transform = TextureTransform { 
-                    position: [(x as i32 + font_character.offset_x) as f32, (y as i32 - font_character.offset_y - font_character.height as i32 - 40) as f32], 
+                    position: [
+                        (curr_x + font_character.offset_x as f32), 
+                        (curr_y + (line_height - font_character.offset_y as f32 - font_character.height as f32))
+                    ], 
                     scale: [font_character.width as f32, font_character.height as f32], 
                     rotation: 0.0,
 
@@ -24,7 +37,41 @@ impl UiRenderer {
                 };
 
                 self.char_instances.push(transform.into());
-                x += font_character.advance;
+                curr_x += font_character.advance as f32;
+                if curr_x > width as f32 {
+                    curr_y -= line_height;
+                    curr_x = x as f32;
+                }
+            }
+
+            if c == '\n' {
+                curr_y -= line_height;
+            }
+        }
+    }
+
+    pub fn put_string(&mut self, text: &str, x: u32, y: u32, font_size: u32) {
+        let mut x = x as f32;
+        let y = y as f32;
+        
+        let font_scale = font_size as f32;
+        let line_height = 10.0;
+        for c in text.as_bytes().iter() {
+            if let Some(font_character) = self.font.get_character(*c as char) {
+                let transform = TextureTransform { 
+                    position: [
+                        (x + font_character.offset_x as f32 * font_scale), 
+                        (y + (line_height - font_character.offset_y as f32 - font_character.height as f32) * font_scale)
+                    ], 
+                    scale: [font_character.width as f32 * font_scale, font_character.height as f32 * font_scale], 
+                    rotation: 0.0,
+
+                    tex_position: [font_character.tex_x, font_character.tex_y],
+                    tex_scale: [font_character.tex_width, font_character.tex_height]
+                };
+
+                self.char_instances.push(transform.into());
+                x += font_character.advance as f32 * font_scale;
             }
         }
     }
@@ -65,7 +112,7 @@ impl UiRenderer {
         text_pipeline.vertices(&Self::TEXTURED_VERTICES);
         text_pipeline.indices(&Self::INDICES);
 
-        let font_map = Font::new("resources/verdana_sdf.fnt").unwrap();
+        let font_map = Font::new("resources/verdana.fnt").unwrap();
         let font_texture= render_api.load_texture(&font_map.image_path);
 
         let texture_binding = text_pipeline.shader().get_texture_binding("font").unwrap();

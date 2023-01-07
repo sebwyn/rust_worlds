@@ -38,7 +38,7 @@ impl Scene for Ui {
         }
 
 
-        self.ui.put_string(&self.text, 0, 300);
+        self.ui.put_text(&self.text, 20, 560, 380);
         self.ui.put_rect(10, 10, 400, 580, [0.022, 0.025, 0.034, 1.0]);
 
         self.ui.update(events);
