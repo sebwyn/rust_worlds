@@ -143,16 +143,13 @@ impl Shader {
             context,
         }
     }
-    
 
-    pub fn get_uniform_binding(&self, name: &str) -> Option<UniformBinding> {
-        self.uniform_bindings.get(name).cloned()
-    }
-
-    pub fn set_uniform<T>(&self, binding: &UniformBinding, value: T) -> Result<(), ()> 
+    pub fn set_uniform<T>(&self, name: &str, value: T) -> Result<(), ()> 
     where
         T: bytemuck::Pod
     {
+        let binding = self.uniform_bindings.get(name).cloned().ok_or(())?;
+
         let bind_group = self.groups.get(binding.group as usize).ok_or(())?;
         if let Group::Uniform(uniform_group) = bind_group {
             assert!(size_of::<T>() == binding.size as usize, 
@@ -168,12 +165,9 @@ impl Shader {
         }
     }
 
-    pub fn get_texture_binding(&self, name: &str) -> Option<TextureBinding> {
-        self.texture_bindings.get(name).cloned()
-    }
-
-    pub fn update_texture(&mut self, binding: &TextureBinding, texture: &Texture, sampler: Option<&Sampler>) -> Result<(), ()> 
+    pub fn update_texture(&mut self, name: &str, texture: &Texture, sampler: Option<&Sampler>) -> Result<(), ()> 
     {
+        let binding = self.texture_bindings.get(name).cloned().ok_or(())?;
         let texture_group = self.groups.get_mut(binding.group as usize).ok_or(())?;
         if let Group::Texture(texture_group) = texture_group {
             texture_group.update_texture(texture, sampler, &self.context.device);

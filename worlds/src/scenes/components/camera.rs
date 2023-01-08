@@ -174,7 +174,7 @@ impl Camera {
                 cgmath::Vector3::unit_y(),
             );
 
-            let perspective = cgmath::perspective(cgmath::Deg(45.0), 800.0 / 600.0, 0.1, 100.0);
+            let perspective = cgmath::perspective(cgmath::Deg(45.0), self.window.size().0 as f32 / self.window.size().1 as f32, 0.1, 100.0);
             self.combined_matrix = OPENGL_TO_WGPU_MATRIX * perspective * self.view_matrix;
         }
     }

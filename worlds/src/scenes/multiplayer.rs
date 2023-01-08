@@ -105,7 +105,6 @@ pub struct Multiplayer {
 
     //rendering stuff
     pipeline: RenderPipeline,
-    view_matrix_binding: UniformBinding,
 
     event_factory: ClientEventFactory,
     client_agent: Option<Agent<Vec<app::ClientEvent>, app::Snapshot>>,
@@ -124,11 +123,6 @@ impl Scene for Multiplayer {
                 },
                 primitive: RenderPrimitive::Triangles,
             });
-
-        let view_matrix_binding = pipeline
-            .shader()
-            .get_uniform_binding("combined_matrix")
-            .expect("Failed to get view matrix uniform from polygon shader");
 
         let camera = Camera::new(window.clone());
 
@@ -165,7 +159,6 @@ impl Scene for Multiplayer {
             other_transforms: Vec::new(),
 
             pipeline,
-            view_matrix_binding,
             
             event_factory,
             client_agent: Some(client_agent),
@@ -218,7 +211,7 @@ impl Scene for Multiplayer {
 
         self.pipeline
             .shader()
-            .set_uniform(&self.view_matrix_binding, combined_matrix_data)
+            .set_uniform("combined_matrix", combined_matrix_data)
             .unwrap();
 
         let mut encoder = render_api.begin_render();

@@ -52,11 +52,10 @@ struct Voxel {
 pub struct Voxels {
     //logic stuff
     camera: Camera,
+    window: Rc<Window>,
 
     //rendering stuff
     pipeline: RenderPipeline,
-    camera_position_binding: UniformBinding,
-    view_matrix_binding: UniformBinding,
 
 }
 
@@ -125,36 +124,19 @@ impl Scene for Voxels {
         //generate a texture from
         let texture = api.create_texture::<u32>(dimensions.0, dimensions.1, wgpu::TextureFormat::R32Uint);
         texture.write_buffer(to_byte_slice(voxels.as_slice()));
-        let voxel_texture_binding = pipeline.shader()
-            .get_texture_binding("voxel_data")
-            .expect("Can't find voxel shader binding!");
-        pipeline.shader().update_texture(&voxel_texture_binding, &texture, None).expect("Failed to set voxels in a texture group!");
+        pipeline.shader().update_texture("voxel_data", &texture, None).expect("Failed to set voxels in a texture group!");
 
         //set our render uniforms
-        let resolution_binding = pipeline.shader()
-            .get_uniform_binding("resolution")
-            .expect("Can't find resolution uniform in voxel shader!");
-        pipeline.shader().set_uniform(&resolution_binding, Vec2 { x: width as f32, y: height as f32 }).expect("failed to set uniform resolution");
+        pipeline.shader().set_uniform("resolution", Vec2 { x: width as f32, y: height as f32 }).expect("failed to set uniform resolution");
+        pipeline.shader().set_uniform("near", 1f32).expect("failed to set uniform near!");
 
-        let near_binding = pipeline.shader()
-            .get_uniform_binding("near")
-            .expect("Can't find near uniform in voxel shader!");
-        pipeline.shader().set_uniform(&near_binding, 1f32).expect("failed to set uniform near!");
-
-        let camera_position_binding = pipeline.shader()
-            .get_uniform_binding("camera_position")
-            .expect("Can't find near camera position uniform in voxel shader!");
-        let view_matrix_binding = pipeline.shader()
-            .get_uniform_binding("view_matrix")
-            .expect("Can't find near view direction uniform in voxel shader!");
-
-        let camera = Camera::new(window);
+        let camera = Camera::new(window.clone());
 
         Self {
             camera,
+            window,
+
             pipeline,
-            camera_position_binding,
-            view_matrix_binding,
         }
     }
     //this update just serves as a camera controller right now
@@ -163,12 +145,14 @@ impl Scene for Voxels {
     }
 
     fn render(&mut self, surface_view: &wgpu::TextureView, render_api: &RenderApi) {
+        self.pipeline.shader().set_uniform("resolution", Vec2 { x: self.window.size().0 as f32, y: self.window.size().1 as f32 }).expect("failed to set uniform resolution");
+
         let mut transposed_view_matrix = self.camera.view_matrix().clone();
         transposed_view_matrix.transpose_self(); 
         let view_matrix_data: [[f32; 4]; 4] = transposed_view_matrix.into();
 
-        self.pipeline.shader().set_uniform(&self.camera_position_binding, *self.camera.position()).unwrap();
-        self.pipeline.shader().set_uniform(&self.view_matrix_binding, view_matrix_data).unwrap();
+        self.pipeline.shader().set_uniform("camera_position", *self.camera.position()).unwrap();
+        self.pipeline.shader().set_uniform("view_matrix", view_matrix_data).unwrap();
 
         let mut encoder = render_api.begin_render();
         self.pipeline.render(surface_view, &mut encoder);

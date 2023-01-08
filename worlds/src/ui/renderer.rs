@@ -115,13 +115,11 @@ impl UiRenderer {
         let font_map = Font::new("resources/verdana.fnt").unwrap();
         let font_texture= render_api.load_texture(&font_map.image_path);
 
-        let texture_binding = text_pipeline.shader().get_texture_binding("font").unwrap();
-        text_pipeline.shader().update_texture(&texture_binding, &font_texture, Some(&render_api.create_sampler())).unwrap();
+        text_pipeline.shader().update_texture("font", &font_texture, Some(&render_api.create_sampler())).unwrap();
 
         let ortho_matrix: [[f32; 4]; 4] = cgmath::ortho(0.0, 800.0, 0.0, 600.0, -2.0, 2.0).into();
 
-        let ortho_matrix_binding = text_pipeline.shader().get_uniform_binding("ortho_matrix").unwrap();
-        text_pipeline.shader().set_uniform(&ortho_matrix_binding, ortho_matrix).unwrap();
+        text_pipeline.shader().set_uniform("ortho_matrix", ortho_matrix).unwrap();
 
 
         
@@ -134,8 +132,7 @@ impl UiRenderer {
         rect_pipeline.vertices(&Self::VERTICES);
         rect_pipeline.indices(&Self::INDICES);
 
-        let ortho_matrix_binding = rect_pipeline.shader().get_uniform_binding("ortho_matrix").unwrap();
-        rect_pipeline.shader().set_uniform(&ortho_matrix_binding, ortho_matrix).unwrap();
+        rect_pipeline.shader().set_uniform("ortho_matrix", ortho_matrix).unwrap();
 
         Self {
             text_pipeline,
@@ -151,11 +148,9 @@ impl UiRenderer {
         if let Some(Event::WindowResized((width, height))) = resize {
             let ortho_matrix: [[f32; 4]; 4] = cgmath::ortho(0.0, *width as f32, 0.0, *height as f32, -2.0, 2.0).into();
 
-            let ortho_matrix_binding = self.text_pipeline.shader().get_uniform_binding("ortho_matrix").unwrap();
-            self.text_pipeline.shader().set_uniform(&ortho_matrix_binding, ortho_matrix).unwrap();
+            self.text_pipeline.shader().set_uniform("ortho_matrix", ortho_matrix).unwrap();
 
-            let ortho_matrix_binding = self.rect_pipeline.shader().get_uniform_binding("ortho_matrix").unwrap();
-            self.rect_pipeline.shader().set_uniform(&ortho_matrix_binding, ortho_matrix).unwrap();
+            self.rect_pipeline.shader().set_uniform("ortho_matrix", ortho_matrix).unwrap();
         }
     }
 
