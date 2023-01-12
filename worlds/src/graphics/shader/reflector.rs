@@ -1,4 +1,4 @@
-use super::descriptors::{UniformDescriptor, UniformGroupDescriptor, TextureGroupDescriptor, GroupDescriptor, Usages};
+use super::descriptors::{UniformDescriptor, UniformGroupDescriptor, TextureGroupDescriptor, GroupDescriptor, Usages, TextureKind};
 
 use std::collections::HashMap;
 use std::ptr;
@@ -130,7 +130,7 @@ impl Reflector {
                     };
 
                 if let GroupDescriptor::Texture(texture_group) = group {
-                    if let naga::TypeInner::Image { dim, .. } = kind.inner {
+                    if let naga::TypeInner::Image { dim, class , ..} = kind.inner {
                         texture_group.image = Some(uniform);
                         match dim {
                             naga::ImageDimension::D1 => texture_group.dimensions = 1,
@@ -138,6 +138,11 @@ impl Reflector {
                             naga::ImageDimension::D3 => texture_group.dimensions = 3,
                             _ => panic!("Cube maps are not supported")
                             //naga::ImageDimension::Cube => texture_group.dimensions = 1,
+                        }
+                        match class {
+                            naga::ImageClass::Sampled { kind: naga::ScalarKind::Uint , .. } => texture_group.kind = TextureKind::Uint,
+                            naga::ImageClass::Sampled { kind: naga::ScalarKind::Float , .. } => texture_group.kind = TextureKind::Float,
+                            _ => panic!("Many texture types not supported") 
                         }
                         self.uniform_descriptors.insert(variable.0, texture_group.image.as_mut().unwrap());
                     } else if let naga::TypeInner::Sampler { .. } = kind.inner {

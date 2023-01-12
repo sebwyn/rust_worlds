@@ -22,11 +22,16 @@ impl TextureGroup {
         let image_uniform = descriptor.image.as_ref().expect("No image found for texture group");
         assert!(matches!(image_uniform.usages, Usages::FRAGMENT), "Image uniform is not exclusive to fragment shader!");
 
-        let dimensions = match descriptor.dimensions {
+        let view_dimension = match descriptor.dimensions {
             1 => wgpu::TextureViewDimension::D1,
             2 => wgpu::TextureViewDimension::D2,
             3 => wgpu::TextureViewDimension::D3,
             _ => panic!("Unsupported texture dimensions: {}", image_uniform.name),
+        };
+
+        let sample_type = match descriptor.kind {
+            crate::graphics::shader::descriptors::TextureKind::Float => wgpu::TextureSampleType::Float { filterable: true },
+            crate::graphics::shader::descriptors::TextureKind::Uint => wgpu::TextureSampleType::Uint,
         };
 
         let mut entries: Vec<wgpu::BindGroupLayoutEntry> = Vec::new();
@@ -35,9 +40,8 @@ impl TextureGroup {
             visibility: wgpu::ShaderStages::FRAGMENT,
             ty: wgpu::BindingType::Texture {
                 multisampled: false,
-                view_dimension: dimensions,
-                sample_type: wgpu::TextureSampleType::Uint, //TODO: make this pull from whatever
-                                                            //type the texture is
+                view_dimension,
+                sample_type,
             },
             count: None,
         });
@@ -63,7 +67,7 @@ impl TextureGroup {
             });
 
         //could set a default texture here, but idk?
-        
+
         Self {
             name: image_uniform.name.clone(),
             texture_binding: image_uniform.binding,
@@ -76,14 +80,14 @@ impl TextureGroup {
 
     pub fn update_texture(&mut self, texture: &Texture, sampler: Option<&Sampler>, device: &wgpu::Device) {
         let mut bind_group_entries = Vec::new();
-        
+
         bind_group_entries.push(wgpu::BindGroupEntry {
             binding: self.texture_binding,
             resource: wgpu::BindingResource::TextureView(texture.view()),
         });
 
         if let Some(sampler) = sampler {
-            
+
             bind_group_entries.push(wgpu::BindGroupEntry {
                 binding: self.sampler_binding.expect("Expected to set a sampler on a texture bind group that has a sampler defined"),
                 resource: wgpu::BindingResource::Sampler(sampler.wgpu_sampler()),

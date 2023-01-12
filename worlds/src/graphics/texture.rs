@@ -79,6 +79,11 @@ impl Texture {
     }
 
     fn create(format: wgpu::TextureFormat, bytes_per_pixel: u32, dimensions: (u32, u32), render_context: Rc<RenderContext>) -> Self {
+        let wgpu_dimensions = match dimensions.1 {
+            1 => wgpu::TextureDimension::D1,
+            _ => wgpu::TextureDimension::D2,
+        };
+        
         let extent = wgpu::Extent3d {
             width: dimensions.0,
             height: dimensions.1,
@@ -89,7 +94,7 @@ impl Texture {
             size: extent,
             mip_level_count: 1,
             sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
+            dimension: wgpu_dimensions,
             format,
             usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
             label: Some("diffuse_texture"),

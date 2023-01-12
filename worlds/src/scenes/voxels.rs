@@ -1,7 +1,6 @@
 use crate::core::Scene;
 use crate::graphics::RenderPipeline;
 use crate::graphics::RenderApi;
-use crate::graphics::UniformBinding;
 use crate::graphics::{ShaderDescriptor, RenderPipelineDescriptor, Attachment, AttachmentAccess, RenderPrimitive};
 
 use crate::core::Window;
@@ -26,8 +25,8 @@ fn to_byte_slice(uints: & [u32]) -> &[u8] {
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
-pub struct Vert { 
-    pub position: Vec2 
+pub struct Vert {
+    pub position: Vec2
 }
 
 impl Vert {
@@ -46,7 +45,7 @@ impl Vertex for Vert {
 }
 
 struct Voxel {
-    exists: bool
+    color: u8
 }
 
 pub struct Voxels {
@@ -61,7 +60,7 @@ pub struct Voxels {
 
 impl Voxels {
     const INDICES: [u32; 6] = [ 0, 1, 2, 3, 2, 1];
-    const VERTICES: [Vert; 4] = [ 
+    const VERTICES: [Vert; 4] = [
         Vert { position: Vec2 { x: -1f32, y: -1f32 }},
         Vert { position: Vec2 { x:  1f32, y: -1f32 }},
         Vert { position: Vec2 { x: -1f32, y:  1f32 }},
@@ -76,11 +75,13 @@ impl Voxels {
 
         let dist = (sphere_center - voxel_center).magnitude();
 
-        if dist < 8.0 {
-            Voxel { exists: true }
+        Voxel { color: rand::random::<u8>().clamp(1, 255) }
+
+        /*if dist < 8.0 {
+            Voxel { color: rand::random::<u8>().clamp(1, 255) }
         } else {
-            Voxel { exists: false }
-        }
+            Voxel { color: 0 }
+        }*/
     }
 }
 
@@ -89,23 +90,23 @@ impl Scene for Voxels {
         let width = window.winit_window().inner_size().width as f32;
         let height = window.winit_window().inner_size().height as f32;
 
-        let mut pipeline = api.create_render_pipeline::<Vert>(RenderPipelineDescriptor { 
+        let mut pipeline = api.create_render_pipeline::<Vert>(RenderPipelineDescriptor {
             attachment_accesses: vec![
                 AttachmentAccess {
                     clear_color: Some([0f64; 4]),
                     attachment: Attachment::Swapchain,
                 }
-            ], 
+            ],
             shader: &ShaderDescriptor {
                 file: "shaders/voxel.wgsl",
-            }, 
+            },
             primitive: RenderPrimitive::Triangles,
         });
 
         pipeline.vertices(&Self::VERTICES);
         pipeline.indices(&Self::INDICES);
 
-        let dimensions: (u32, u32, u32) = (32, 32, 32);
+        let dimensions: (u32, u32, u32) = (4, 4, 4);
 
         //generate our voxels, create a texture, and set the texture uniform on the pipeline (no live updating right now)
         let voxels: Vec<u32> = (0..dimensions.1*dimensions.2).into_par_iter().map(|row_pos| {
@@ -114,12 +115,39 @@ impl Scene for Voxels {
 
             //iterate row_z and construct a u32 with voxel data
             let mut voxel_out = 0u32;
-            for x in 0..32 {
-                voxel_out |= u32::from(Self::generate_voxel(x, y, z).exists) << x;
+            for x in 0..4 {
+                voxel_out |= (u8::from(Self::generate_voxel(x, y, z).color) as u32) << (x * 8);
             }
 
             voxel_out
         }).collect();
+
+        //load our color palette
+        let palette_file = std::fs::read_to_string("resources/palette.txt").unwrap();
+        let mut colors = palette_file.lines().flat_map(|(color)| {
+            let (r , gba) = color.split_at(2);
+            let (g, b) = gba.split_at(2);
+
+            [
+                u8::from_str_radix(r, 16).unwrap(),
+                u8::from_str_radix(g, 16).unwrap(),
+                u8::from_str_radix(b, 16).unwrap(),
+                255
+            ]
+        }).collect::<Vec<u8>>();
+
+        println!("{:?}", colors);
+        println!("{:x?}", voxels);
+
+        assert!(colors.len() <= 256 * 4, "The color palette is too long {}", colors.len());
+
+        let padding = vec![0u8; 4 * 256 - colors.len()];
+        colors.extend(padding);
+
+        let palette = api.create_texture::<u32>(256, 1, wgpu::TextureFormat::Rgba8UnormSrgb);
+        palette.write_buffer(&colors);
+
+        pipeline.shader().update_texture("palette", &palette, None).expect("Failed to load texture onto gpu");
 
         //generate a texture from
         let texture = api.create_texture::<u32>(dimensions.0, dimensions.1, wgpu::TextureFormat::R32Uint);
@@ -148,7 +176,7 @@ impl Scene for Voxels {
         self.pipeline.shader().set_uniform("resolution", Vec2 { x: self.window.size().0 as f32, y: self.window.size().1 as f32 }).expect("failed to set uniform resolution");
 
         let mut transposed_view_matrix = self.camera.view_matrix().clone();
-        transposed_view_matrix.transpose_self(); 
+        transposed_view_matrix.transpose_self();
         let view_matrix_data: [[f32; 4]; 4] = transposed_view_matrix.into();
 
         self.pipeline.shader().set_uniform("camera_position", *self.camera.position()).unwrap();

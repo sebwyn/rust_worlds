@@ -41,6 +41,18 @@ pub struct UniformGroupDescriptor {
     pub uniforms: Vec<UniformDescriptor>,
 }
 
+#[derive(Clone, Debug)]
+pub enum TextureKind {
+    Float,
+    Uint,
+}
+
+impl Default for TextureKind {
+    fn default() -> Self {
+        TextureKind::Float
+    }
+}
+
 //TODO: add code to deal with different sampling types
 #[derive(Default, Clone, Debug)]
 pub struct TextureGroupDescriptor {
@@ -49,6 +61,7 @@ pub struct TextureGroupDescriptor {
     pub sampler: Option<UniformDescriptor>,
     pub image: Option<UniformDescriptor>,
     pub usages: Usages,
+    pub kind: TextureKind,
 }
 
 #[derive(Clone, Debug)]
