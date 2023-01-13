@@ -35,12 +35,11 @@ fn voxel_from_pos(position: vec3<i32>) -> vec4<f32> {
         //return true;
         //look up the voxel in our texture
         let row = textureLoad(voxel_data, position.yz, 0).r;
-        let color_index = i32(row & (u32(0xFF) << u32(position.x * 8)));
+        let color_index = i32((row & (u32(0xFF) << u32(position.x * 8))) >> u32(position.x * 8));
 
-        //return vec4<f32>(f32(position.x) / 4.0, f32(position.y) / 4.0, f32(position.z) / 4.0, 1.0);
-        //if color_index > 0 {
+        if color_index > 0 {
             return textureLoad(palette, color_index, 0);
-        //}
+        }
 
     }
 
@@ -113,7 +112,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let color = voxel_from_pos(voxel);
         if color.x > -0.1 {
             return color;
-            //return vec4<f32>(color.xyz, 1.0);
         }
     }
 

@@ -69,19 +69,7 @@ impl Voxels {
 
     fn generate_voxel(x: u32, y: u32, z: u32) -> Voxel {
         //hardcode a sphere in a 32x32x32 grid
-
-        let sphere_center = Vec3 { x: 16f32, y: 16f32, z: 16f32 };
-        let voxel_center = Vec3 {x: x as f32 + 0.5, y: y as f32 + 0.5, z: z as f32 + 0.5 };
-
-        let dist = (sphere_center - voxel_center).magnitude();
-
         Voxel { color: rand::random::<u8>().clamp(1, 255) }
-
-        /*if dist < 8.0 {
-            Voxel { color: rand::random::<u8>().clamp(1, 255) }
-        } else {
-            Voxel { color: 0 }
-        }*/
     }
 }
 
@@ -115,16 +103,18 @@ impl Scene for Voxels {
 
             //iterate row_z and construct a u32 with voxel data
             let mut voxel_out = 0u32;
-            for x in 0..4 {
+            for x in 0..dimensions.0 {
                 voxel_out |= (u8::from(Self::generate_voxel(x, y, z).color) as u32) << (x * 8);
             }
+
+            println!("{:x?}", voxel_out);
 
             voxel_out
         }).collect();
 
         //load our color palette
         let palette_file = std::fs::read_to_string("resources/palette.txt").unwrap();
-        let mut colors = palette_file.lines().flat_map(|(color)| {
+        let mut colors = palette_file.lines().flat_map(|color| {
             let (r , gba) = color.split_at(2);
             let (g, b) = gba.split_at(2);
 
@@ -135,9 +125,6 @@ impl Scene for Voxels {
                 255
             ]
         }).collect::<Vec<u8>>();
-
-        println!("{:?}", colors);
-        println!("{:x?}", voxels);
 
         assert!(colors.len() <= 256 * 4, "The color palette is too long {}", colors.len());
 
@@ -150,7 +137,7 @@ impl Scene for Voxels {
         pipeline.shader().update_texture("palette", &palette, None).expect("Failed to load texture onto gpu");
 
         //generate a texture from
-        let texture = api.create_texture::<u32>(dimensions.0, dimensions.1, wgpu::TextureFormat::R32Uint);
+        let texture = api.create_texture::<u32>(dimensions.1, dimensions.2, wgpu::TextureFormat::R32Uint);
         texture.write_buffer(to_byte_slice(voxels.as_slice()));
         pipeline.shader().update_texture("voxel_data", &texture, None).expect("Failed to set voxels in a texture group!");
 
