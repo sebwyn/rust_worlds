@@ -16,7 +16,7 @@ fn vs_main(
 }
 
 // Fragment shader
-@group(0) @binding(0) var voxel_data: texture_2d<u32>;
+@group(0) @binding(0) var voxel_data: texture_3d<u32>;
 @group(2) @binding(0) var palette: texture_1d<f32>;
 
 @group(1) @binding(0) var<uniform> resolution: vec2<f32>;
@@ -26,20 +26,22 @@ fn vs_main(
 
 fn voxel_from_pos(position: vec3<i32>) -> vec4<f32> {
     if(
-        0 <= position.x && position.x < 4 &&
-        0 <= position.y && position.y < 4 &&
+        0 <= position.x && position.x < 8 &&
+        0 <= position.y && position.y < 8 &&
         0 <= position.z && position.z < 4
     ){
         //calculate our tex coord from our y, and z, x coords are contained in one pixel that is 32 bit
+        let offset = vec3<u32>(vec2<u32>(position.xy) % vec2<u32>(u32(2)), u32(0));
+        let actual_position = position / vec3<i32>(2, 2, 1);
+        let pixel = textureLoad(voxel_data, actual_position.xyz, 0).r;
 
-        //return true;
-        //look up the voxel in our texture
-        let row = textureLoad(voxel_data, position.yz, 0).r;
-        let color_index = i32((row & (u32(0xFF) << u32(position.x * 8))) >> u32(position.x * 8));
+        let sub_pixel_offset = offset.x | (offset.y << u32(1));
 
-        if color_index > 0 {
-            return textureLoad(palette, color_index, 0);
-        }
+        let color_index = i32((pixel & (u32(0xFF) << (sub_pixel_offset * u32(8)))) >> (sub_pixel_offset * u32(8)));
+
+        // if color_index > 0 {
+             return textureLoad(palette, color_index, 0);
+        // }
 
     }
 

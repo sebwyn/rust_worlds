@@ -27,8 +27,8 @@ impl RenderApi {
 }
 
 impl RenderApi {
-    pub fn create_texture<T>(&self, width: u32, height: u32, texture_format: wgpu::TextureFormat) -> Texture {
-        Texture::new::<T>(width, height, texture_format, self.render_context.clone())
+    pub fn create_texture<T>(&self, dimensions: (u32, u32, u32), texture_format: wgpu::TextureFormat) -> Texture {
+        Texture::new::<T>(dimensions, texture_format, self.render_context.clone())
     }
 
     pub fn load_texture(&self, file: &str) -> Texture {

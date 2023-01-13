@@ -48,13 +48,13 @@ impl Texture {
 
 impl Texture {
     //TODO: create a grpahics texture object, to wrap wgpu
-    pub fn new<T>(width: u32, height: u32, format: wgpu::TextureFormat, render_context: Rc<RenderContext>) -> Self {
+    pub fn new<T>(dimensions: (u32, u32, u32), format: wgpu::TextureFormat, render_context: Rc<RenderContext>) -> Self {
         let bytes_per_pixel = size_of::<T>() as u32;
 
         Self::create(
             format,
             bytes_per_pixel,
-            (width, height),
+            dimensions,
             render_context,
         )
     }
@@ -70,7 +70,7 @@ impl Texture {
         let texture = Self::create(
             wgpu::TextureFormat::Rgba8UnormSrgb, 
             bytes_per_pixel,
-            (texture_image.width(), texture_image.height()), 
+            (texture_image.width(), texture_image.height(), 1), 
             render_context
         );
 
@@ -78,16 +78,19 @@ impl Texture {
         texture
     }
 
-    fn create(format: wgpu::TextureFormat, bytes_per_pixel: u32, dimensions: (u32, u32), render_context: Rc<RenderContext>) -> Self {
+    fn create(format: wgpu::TextureFormat, bytes_per_pixel: u32, dimensions: (u32, u32, u32), render_context: Rc<RenderContext>) -> Self {
         let wgpu_dimensions = match dimensions.1 {
             1 => wgpu::TextureDimension::D1,
-            _ => wgpu::TextureDimension::D2,
+            _ => match dimensions.2 {
+                1 => wgpu::TextureDimension::D2,
+                _ => wgpu::TextureDimension::D3,
+            } 
         };
         
         let extent = wgpu::Extent3d {
             width: dimensions.0,
             height: dimensions.1,
-            depth_or_array_layers: 1,
+            depth_or_array_layers: dimensions.2,
         };
 
         let texture = render_context.device.create_texture(&wgpu::TextureDescriptor {

@@ -97,16 +97,17 @@ impl Scene for Voxels {
         let dimensions: (u32, u32, u32) = (4, 4, 4);
 
         //generate our voxels, create a texture, and set the texture uniform on the pipeline (no live updating right now)
-        let voxels: Vec<u32> = (0..dimensions.1*dimensions.2).into_par_iter().map(|row_pos| {
-            let y = row_pos % dimensions.1;
-            let z = row_pos / dimensions.1;
+        let voxels: Vec<u32> = (0..dimensions.0*dimensions.1*dimensions.2).into_par_iter().map(|row_pos| {
+            let x= row_pos % dimensions.0;
+            let y = (row_pos / dimensions.0) % dimensions.1;
+            let z = row_pos / (dimensions.0 * dimensions.1);
 
-            //iterate row_z and construct a u32 with voxel data
             let mut voxel_out = 0u32;
-            for x in 0..dimensions.0 {
-                voxel_out |= (u8::from(Self::generate_voxel(x, y, z).color) as u32) << (x * 8);
+            for offset in 0..4 {
+                let x_offset = offset & 1;
+                let y_offset = (offset & 2) >> 1;
+                voxel_out |= (Self::generate_voxel(x + x_offset, y + y_offset, z).color as u32) << (offset * 8);
             }
-
             voxel_out
         }).collect();
 
@@ -129,13 +130,13 @@ impl Scene for Voxels {
         let padding = vec![0u8; 4 * 256 - colors.len()];
         colors.extend(padding);
 
-        let palette = api.create_texture::<u32>(256, 1, wgpu::TextureFormat::Rgba8UnormSrgb);
+        let palette = api.create_texture::<u32>((256, 1, 1), wgpu::TextureFormat::Rgba8UnormSrgb);
         palette.write_buffer(&colors);
 
         pipeline.shader().update_texture("palette", &palette, None).expect("Failed to load texture onto gpu");
 
         //generate a texture from
-        let texture = api.create_texture::<u32>(dimensions.1, dimensions.2, wgpu::TextureFormat::R32Uint);
+        let texture = api.create_texture::<u32>(dimensions, wgpu::TextureFormat::R32Uint);
         texture.write_buffer(to_byte_slice(voxels.as_slice()));
         pipeline.shader().update_texture("voxel_data", &texture, None).expect("Failed to set voxels in a texture group!");
 
