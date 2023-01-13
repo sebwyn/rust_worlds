@@ -107,8 +107,6 @@ impl Scene for Voxels {
                 voxel_out |= (u8::from(Self::generate_voxel(x, y, z).color) as u32) << (x * 8);
             }
 
-            println!("{:x?}", voxel_out);
-
             voxel_out
         }).collect();
 
