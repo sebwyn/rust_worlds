@@ -68,8 +68,16 @@ impl Voxels {
     ];
 
     fn generate_voxel(x: u32, y: u32, z: u32) -> Voxel {
-        //hardcode a sphere in a 32x32x32 grid
-        Voxel { color: rand::random::<u8>().clamp(1, 255) }
+        let x_dist = x as i32 - 16;
+        let y_dist = y as i32 - 16;
+        let z_dist = z as i32 - 16;
+        let length = (((x_dist * x_dist) + (y_dist * y_dist) + (z_dist * z_dist)) as f64).sqrt();
+
+        if length < 8.0 {
+            Voxel { color: rand::random::<u8>().clamp(1, 255) }
+        } else {
+            Voxel { color: 0 }
+        }
     }
 }
 
@@ -94,13 +102,14 @@ impl Scene for Voxels {
         pipeline.vertices(&Self::VERTICES);
         pipeline.indices(&Self::INDICES);
 
-        let dimensions: (u32, u32, u32) = (4, 4, 4);
+        let dimensions: (u32, u32, u32) = (32, 32, 32);
+        let texture_dimensions = (dimensions.0 / 2, dimensions.1 / 2, dimensions.2);
 
         //generate our voxels, create a texture, and set the texture uniform on the pipeline (no live updating right now)
-        let voxels: Vec<u32> = (0..dimensions.0*dimensions.1*dimensions.2).into_par_iter().map(|row_pos| {
-            let x= row_pos % dimensions.0;
-            let y = (row_pos / dimensions.0) % dimensions.1;
-            let z = row_pos / (dimensions.0 * dimensions.1);
+        let voxels: Vec<u32> = (0..texture_dimensions.0*texture_dimensions.1*texture_dimensions.2).into_par_iter().map(|row_pos| {
+            let x= (row_pos % texture_dimensions.0) * 2;
+            let y = ((row_pos / texture_dimensions.0) % texture_dimensions.1) * 2;
+            let z = row_pos / (texture_dimensions.0 * texture_dimensions.1);
 
             let mut voxel_out = 0u32;
             for offset in 0..4 {
@@ -136,13 +145,15 @@ impl Scene for Voxels {
         pipeline.shader().update_texture("palette", &palette, None).expect("Failed to load texture onto gpu");
 
         //generate a texture from
-        let texture = api.create_texture::<u32>(dimensions, wgpu::TextureFormat::R32Uint);
+        let texture = api.create_texture::<u32>(texture_dimensions, wgpu::TextureFormat::R32Uint);
         texture.write_buffer(to_byte_slice(voxels.as_slice()));
         pipeline.shader().update_texture("voxel_data", &texture, None).expect("Failed to set voxels in a texture group!");
 
         //set our render uniforms
+        /*
         pipeline.shader().set_uniform("resolution", Vec2 { x: width as f32, y: height as f32 }).expect("failed to set uniform resolution");
-        pipeline.shader().set_uniform("near", 1f32).expect("failed to set uniform near!");
+        pipeline.shader().set_uniform("near", 0.5f32).expect("failed to set uniform near!");
+        */
 
         let camera = Camera::new(window.clone());
 
@@ -159,14 +170,19 @@ impl Scene for Voxels {
     }
 
     fn render(&mut self, surface_view: &wgpu::TextureView, render_api: &RenderApi) {
-        self.pipeline.shader().set_uniform("resolution", Vec2 { x: self.window.size().0 as f32, y: self.window.size().1 as f32 }).expect("failed to set uniform resolution");
+        //self.pipeline.shader().set_uniform("resolution", Vec2 { x: self.window.size().0 as f32, y: self.window.size().1 as f32 }).expect("failed to set uniform resolution");
 
-        let mut transposed_view_matrix = self.camera.view_matrix().clone();
+        /*let mut transposed_view_matrix = self.camera.view_matrix().clone();
+        transposed_view_matrix.w = [0.0, 0.0, 0.0, 1.0].into();
         transposed_view_matrix.transpose_self();
-        let view_matrix_data: [[f32; 4]; 4] = transposed_view_matrix.into();
+        let position = self.camera.position().clone();
+        transposed_view_matrix.w = [position.x, position.y, position.z, 1.0].into();
+        let view_matrix_data: [[f32; 4]; 4] = transposed_view_matrix.into();*/
 
-        self.pipeline.shader().set_uniform("camera_position", *self.camera.position()).unwrap();
-        self.pipeline.shader().set_uniform("view_matrix", view_matrix_data).unwrap();
+        let viewproj:  [[f32; 4]; 4] = self.camera.combined_matrix().clone().into();
+        self.pipeline.shader().set_uniform("viewproj", viewproj).unwrap();
+        self.pipeline.shader().set_uniform("near", 1f32).unwrap();
+        self.pipeline.shader().set_uniform("far", 100f32).unwrap();
 
         let mut encoder = render_api.begin_render();
         self.pipeline.render(surface_view, &mut encoder);
