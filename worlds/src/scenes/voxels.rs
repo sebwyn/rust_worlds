@@ -150,10 +150,8 @@ impl Scene for Voxels {
         pipeline.shader().update_texture("voxel_data", &texture, None).expect("Failed to set voxels in a texture group!");
 
         //set our render uniforms
-        /*
         pipeline.shader().set_uniform("resolution", Vec2 { x: width as f32, y: height as f32 }).expect("failed to set uniform resolution");
-        pipeline.shader().set_uniform("near", 0.5f32).expect("failed to set uniform near!");
-        */
+        pipeline.shader().set_uniform("near", 1f32).expect("failed to set uniform near!");
 
         let camera = Camera::new(window.clone());
 
@@ -170,19 +168,14 @@ impl Scene for Voxels {
     }
 
     fn render(&mut self, surface_view: &wgpu::TextureView, render_api: &RenderApi) {
-        //self.pipeline.shader().set_uniform("resolution", Vec2 { x: self.window.size().0 as f32, y: self.window.size().1 as f32 }).expect("failed to set uniform resolution");
+        self.pipeline.shader().set_uniform("resolution", Vec2 { x: self.window.size().0 as f32, y: self.window.size().1 as f32 }).expect("failed to set uniform resolution");
 
-        /*let mut transposed_view_matrix = self.camera.view_matrix().clone();
-        transposed_view_matrix.w = [0.0, 0.0, 0.0, 1.0].into();
+        let mut transposed_view_matrix = self.camera.view_matrix().clone();
         transposed_view_matrix.transpose_self();
-        let position = self.camera.position().clone();
-        transposed_view_matrix.w = [position.x, position.y, position.z, 1.0].into();
-        let view_matrix_data: [[f32; 4]; 4] = transposed_view_matrix.into();*/
+        let view_matrix_data: [[f32; 4]; 4] = transposed_view_matrix.into();
 
-        let viewproj:  [[f32; 4]; 4] = self.camera.combined_matrix().clone().into();
-        self.pipeline.shader().set_uniform("viewproj", viewproj).unwrap();
-        self.pipeline.shader().set_uniform("near", 1f32).unwrap();
-        self.pipeline.shader().set_uniform("far", 100f32).unwrap();
+        self.pipeline.shader().set_uniform("camera_position", *self.camera.position()).unwrap();
+        self.pipeline.shader().set_uniform("view_matrix", view_matrix_data).unwrap();
 
         let mut encoder = render_api.begin_render();
         self.pipeline.render(surface_view, &mut encoder);

@@ -1,7 +1,7 @@
 mod render_structs;
 
 mod renderer;
-pub use renderer::UiRenderer;
+pub use renderer::{UiRenderer, Layout};
 
 mod font;
 

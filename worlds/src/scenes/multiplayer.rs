@@ -4,7 +4,6 @@ use crate::core::ClientEventFactory;
 use crate::core::Scene;
 use crate::graphics::RenderApi;
 use crate::graphics::RenderPipeline;
-use crate::graphics::UniformBinding;
 use crate::graphics::Vertex;
 use crate::graphics::{
     Attachment, AttachmentAccess, RenderPipelineDescriptor, RenderPrimitive, ShaderDescriptor,

@@ -18,6 +18,7 @@ struct InstanceInput {
 };
 
 @group(0) @binding(0) var<uniform> ortho_matrix: mat4x4<f32>;
+@group(1) @binding(0) var<uniform> radius: f32;
 
 @vertex
 fn vs_main(in: VertexInput, instance: InstanceInput) -> VertexOutput {

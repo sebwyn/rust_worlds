@@ -64,12 +64,12 @@ impl Vertex for Vert {
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
-pub(super) struct CharInstance {
+pub(super) struct TexturedInstance {
     model: [[f32; 3]; 3],
     tex_coords: [[f32; 3]; 3],
 }
 
-impl From<TextureTransform> for CharInstance {
+impl From<TextureTransform> for TexturedInstance {
     fn from(transform: TextureTransform) -> Self {
         let rotation_matrix = cgmath::Matrix3::from_angle_z(cgmath::Rad(transform.rotation));
         let scale_matrix = cgmath::Matrix3::from_nonuniform_scale(transform.scale[0], transform.scale[1]);
@@ -82,10 +82,10 @@ impl From<TextureTransform> for CharInstance {
     }
 }
 
-impl Vertex for CharInstance {
+impl Vertex for TexturedInstance {
     fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<CharInstance>() as wgpu::BufferAddress,
+            array_stride: std::mem::size_of::<TexturedInstance>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Instance,
             attributes: &[
                 wgpu::VertexAttribute {
