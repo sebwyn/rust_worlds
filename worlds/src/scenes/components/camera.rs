@@ -4,11 +4,10 @@ use cgmath::{One, Point3, SquareMatrix, Vector3, Vector4};
 
 use crate::{
     core::{Event, Window},
-    graphics::wgsl_types::Vec3,
 };
 
 pub struct Camera {
-    position: Vec3,
+    position: [f32; 3],
     speed: f32,
 
     rotation_enabled: bool,
@@ -37,19 +36,19 @@ impl Camera {
     pub fn combined_matrix(&self) -> &cgmath::Matrix4<f32> {
         &self.combined_matrix
     }
-    pub fn position(&self) -> &Vec3 {
-        &self.position
+    pub fn position(&self) -> [f32; 3] {
+        self.position
     }
 }
 
 impl Camera {
     pub fn new(window: Rc<Window>) -> Self {
         Self {
-            position: Vec3 {
-                x: 0f32,
-                y: 0f32,
-                z: 0f32,
-            },
+            position: [
+                0f32,
+                0f32,
+                0f32,
+            ],
             speed: 0.5,
 
             rotation_enabled: false,
@@ -94,12 +93,12 @@ impl Camera {
                 Event::KeyPressed(key, _) => {
                     use winit::event::VirtualKeyCode;
                     match key {
-                        VirtualKeyCode::S => self.position = self.position - Vec3::from(forward),
-                        VirtualKeyCode::W => self.position = self.position + Vec3::from(forward),
-                        VirtualKeyCode::A => self.position = self.position - Vec3::from(left),
-                        VirtualKeyCode::D => self.position = self.position + Vec3::from(left),
-                        VirtualKeyCode::J => self.position.y -= 1.0,
-                        VirtualKeyCode::K => self.position.y += 1.0,
+                        VirtualKeyCode::S => self.position = [self.position[0] - forward.x, self.position[1] - forward.y, self.position[2] - forward.z],
+                        VirtualKeyCode::W => self.position = [self.position[0] + forward.x, self.position[1] + forward.y, self.position[2] + forward.z],
+                        VirtualKeyCode::A => self.position = [self.position[0] - left.x, self.position[1] - left.y, self.position[2] - left.z],
+                        VirtualKeyCode::D => self.position = [self.position[0] + left.x, self.position[1] + left.y, self.position[2] + left.z],
+                        VirtualKeyCode::J => self.position[1] -= 1.0,
+                        VirtualKeyCode::K => self.position[1] += 1.0,
                         VirtualKeyCode::E => {
                             //toggle rotation
                             self.rotation_enabled = !self.rotation_enabled;

@@ -19,15 +19,12 @@ use std::mem;
 use std::rc::Rc;
 use std::thread;
 
-//define a vert that just has a position
-pub use crate::graphics::wgsl_types::Vec3;
-
 use super::components::Camera;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct Vert {
-    pub position: Vec3,
+    pub position: [f32; 3],
 }
 
 impl Vert {
@@ -129,7 +126,7 @@ impl Scene for Multiplayer {
             let mesh = &obj.0[0].mesh;
             //load positions into verts
             let vertices: Vec<Vert> = mesh.positions.chunks_exact(3).map(|positions| {
-                Vert { position: Vec3 { x: positions[0], y: positions[1], z: positions[2] }}
+                Vert { position: [ positions[0], positions[1], positions[2] ] }
             }).collect();
             
             pipeline.vertices(&vertices);

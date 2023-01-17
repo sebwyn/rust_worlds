@@ -186,13 +186,13 @@ impl UiRenderer {
         rect_pipeline.shader().set_uniform("ortho_matrix", ortho_matrix).unwrap();
         rect_pipeline.shader().set_uniform("radius", 25f32).unwrap();
         
-        let mut sprite_pipeline = render_api.create_instanced_render_pipeline::<Vert, Instance>(RenderPipelineDescriptor { 
-            attachment_accesses: vec![AttachmentAccess { clear_color: Some([0f64, 0f64, 0f64, 0f64]), attachment: Attachment::Swapchain }], 
+        let mut sprite_pipeline = render_api.create_instanced_render_pipeline::<TexturedVert, TexturedInstance>(RenderPipelineDescriptor { 
+            attachment_accesses: vec![AttachmentAccess { clear_color: None, attachment: Attachment::Swapchain }], 
             shader: &ShaderDescriptor { file: "shaders/sprite.wgsl" }, 
             primitive: RenderPrimitive::Triangles 
         });
 
-        sprite_pipeline.vertices(&Self::VERTICES);
+        sprite_pipeline.vertices(&Self::TEXTURED_VERTICES);
         sprite_pipeline.indices(&Self::INDICES);
 
         sprite_pipeline.shader().set_uniform("ortho_matrix", ortho_matrix).unwrap();
@@ -213,8 +213,9 @@ impl UiRenderer {
         if let Some(Event::WindowResized((width, height))) = resize {
             let ortho_matrix: [[f32; 4]; 4] = cgmath::ortho(0.0, *width as f32, 0.0, *height as f32, -2.0, 2.0).into();
 
-            self.text_pipeline.shader().set_uniform("ortho_matrix", ortho_matrix).unwrap();
-            self.rect_pipeline.shader().set_uniform("ortho_matrix", ortho_matrix).unwrap();
+            self.text_pipeline  .shader().set_uniform("ortho_matrix", ortho_matrix).unwrap();
+            self.rect_pipeline  .shader().set_uniform("ortho_matrix", ortho_matrix).unwrap();
+            self.sprite_pipeline.shader().set_uniform("ortho_matrix", ortho_matrix).unwrap();
         }
     }
 
