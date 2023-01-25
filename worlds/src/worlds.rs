@@ -8,9 +8,6 @@ use winit::{
 };
 
 pub struct App<SceneType> {
-    _width: u32,
-    _height: u32,
-
     window: Rc<Window>,
     api: RenderApi,
 
@@ -39,7 +36,6 @@ impl<SceneType: Scene + 'static> App<SceneType> {
 
         //initialize our scene
         let scene = SceneType::new(window.clone(), &api);
-        //let polygons = Polygons::new(window.clone(), &api);
 
         let last_frame = Instant::now();
 
@@ -47,19 +43,15 @@ impl<SceneType: Scene + 'static> App<SceneType> {
             window,
             api,
 
-            _width: width,
-            _height: height,
             last_frame,
 
             events,
             scene,
-            //polygons,
         }
     }
 
     pub fn update(&mut self) {
         let events = self.events.emit();
-        //self.polygons.update(&events);
         self.scene.update(&events);
     }
 
@@ -81,7 +73,6 @@ impl<SceneType: Scene + 'static> App<SceneType> {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         self.scene.render(&current_texture_view, &self.api);
-        //self.polygons.render(&current_texture_view);
 
         current_texture.present();
     }

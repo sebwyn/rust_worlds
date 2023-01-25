@@ -17,7 +17,7 @@ impl Ui {
     fn get_voxel_color(index: u32) -> Layout {
         let x = index % 16;
         let y = index / 16;
-        Layout::new((1.0 / 16.0) * x as f32, (1.0 / 16.0) * y as f32, (1.0 / 16.0), (1.0 / 16.0))
+        Layout::new((1.0 / 16.0) * x as f32, (1.0 / 16.0) * y as f32, 1.0 / 16.0, 1.0 / 16.0)
     }
 }
 

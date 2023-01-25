@@ -1,4 +1,4 @@
-use worlds::{App, Ui, Voxels};
+use worlds::{App, Voxels};
 
 fn main() {
     App::<Voxels>::run()

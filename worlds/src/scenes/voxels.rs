@@ -14,7 +14,6 @@ use rayon::prelude::*;
 
 //define a vert that just has a position
 use crate::graphics::Vertex;
-pub use crate::graphics::wgsl_types::Vec2;
 
 use super::components::Camera;
 
@@ -27,7 +26,7 @@ fn to_byte_slice(uints: & [u32]) -> &[u8] {
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct Vert {
-    pub position: Vec2
+    pub position: [f32; 2]
 }
 
 impl Vert {
@@ -64,10 +63,10 @@ pub struct Voxels {
 impl Voxels {
     const INDICES: [u32; 6] = [ 0, 1, 2, 3, 2, 1];
     const VERTICES: [Vert; 4] = [
-        Vert { position: Vec2 { x: -1f32, y: -1f32 }},
-        Vert { position: Vec2 { x:  1f32, y: -1f32 }},
-        Vert { position: Vec2 { x: -1f32, y:  1f32 }},
-        Vert { position: Vec2 { x:  1f32, y:  1f32 }},
+        Vert { position: [ -1f32, -1f32 ]},
+        Vert { position: [  1f32, -1f32 ]},
+        Vert { position: [ -1f32,  1f32 ]},
+        Vert { position: [  1f32,  1f32 ]},
     ];
 
     fn generate_voxel(x: u32, y: u32, z: u32) -> Voxel {
@@ -238,7 +237,7 @@ impl Scene for Voxels {
         pipeline.shader().update_texture("voxel_data", &voxel_texture, None).expect("Failed to set voxels in a texture group!");
 
         //set our render uniforms
-        pipeline.shader().set_uniform("resolution", Vec2 { x: width as f32, y: height as f32 }).expect("failed to set uniform resolution");
+        pipeline.shader().set_uniform("resolution", [ width as f32, height as f32 ]).expect("failed to set uniform resolution");
         pipeline.shader().set_uniform("near", 1f32).expect("failed to set uniform near!");
 
         let camera = Camera::new(window.clone());
@@ -253,6 +252,7 @@ impl Scene for Voxels {
             pipeline,
         }
     }
+
     //this update just serves as a camera controller right now
     fn update(&mut self, events: &[Event]) {
         self.camera.update(events);
@@ -267,13 +267,11 @@ impl Scene for Voxels {
 
             self.voxel_texture.write_buffer(to_byte_slice(self.voxels.as_slice()));
             self.pipeline.shader().update_texture("voxel_data", &self.voxel_texture, None).expect("Failed to set voxels in a texture group!");
-        }
-
-        println!("{:?}", looking_at);
+        } 
     }
 
     fn render(&mut self, surface_view: &wgpu::TextureView, render_api: &RenderApi) {
-        self.pipeline.shader().set_uniform("resolution", Vec2 { x: self.window.size().0 as f32, y: self.window.size().1 as f32 }).expect("failed to set uniform resolution");
+        self.pipeline.shader().set_uniform("resolution", [ self.window.size().0 as f32, self.window.size().1 as f32 ]).expect("failed to set uniform resolution");
 
         let mut transposed_view_matrix = self.camera.view_matrix().clone();
         transposed_view_matrix.transpose_self();

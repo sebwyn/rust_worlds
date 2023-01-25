@@ -1,12 +1,10 @@
-use crate::graphics::wgsl_types::Vec2;
-
 use crate::graphics::Vertex;
 
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Zeroable, bytemuck::Pod)]
 pub struct Vert { 
-    pub position: Vec2, 
-    pub tex_coord: Vec2 
+    pub position: [f32; 2], 
+    pub tex_coord: [f32; 2] 
 }
 
 impl Vert {

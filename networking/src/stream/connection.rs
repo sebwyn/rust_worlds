@@ -38,9 +38,6 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn client_addr(&self) -> &SocketAddr {
-        &self.client_address
-    }
     pub fn local_addr(&self) -> &SocketAddr {
         &self.local_address
     }
@@ -88,11 +85,11 @@ impl Connection {
         })
     }
 
-    pub fn fake_packet_loss(&mut self, percent: f64) {
+    pub fn _fake_packet_loss(&mut self, percent: f64) {
         self.socket.set_packet_loss_freq(percent);
     }
 
-    pub fn fake_latency(&mut self, ms: u32) {
+    pub fn _fake_latency(&mut self, ms: u32) {
         self.socket.set_latency(ms);
     }
 

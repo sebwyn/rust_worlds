@@ -4,7 +4,6 @@ use cgmath::Vector2;
 use cgmath::Vector3;
 
 use crate::ClientEvent as Event;
-use crate::packets;
 
 #[cfg(feature = "server")]
 pub struct Player {
@@ -88,24 +87,5 @@ impl Player {
                 _ => {}
             }
         }
-    }
-}
-
-#[cfg(feature = "client")]
-pub struct LocalPlayer { }
-
-impl LocalPlayer {
-    pub fn integrate_snapshot() {
-    }
-}
-
-//this will define a client persistent player object that can implement interpolation
-#[cfg(feature = "client")]
-pub struct CPlayer { 
-    matrix: cgmath::Matrix4<f32>,
-}
-
-impl CPlayer { 
-    pub fn integrate_snapshot(player_transform: packets::Transform) {
     }
 }
