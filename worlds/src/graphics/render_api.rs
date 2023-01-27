@@ -104,7 +104,7 @@ impl RenderApi {
             width: size.0,
             height: size.1,
             present_mode: wgpu::PresentMode::AutoVsync,
-            //alpha_mode: wgpu::CompositeAlphaMode::Auto, //doesn't exist in the version of wgpu we need to use for text rendering
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
         };
         surface.configure(&device, &config);
 

@@ -1,13 +1,14 @@
 use std::rc::Rc;
 
-use cgmath::{One, Point3, SquareMatrix, Vector3, Vector4};
+use cgmath::{One, Point3, SquareMatrix, Vector3, Vector4, EuclideanSpace, Zero};
+use winit::dpi::PhysicalPosition;
 
 use crate::{
     core::{Event, Window},
 };
 
 pub struct Camera {
-    position: [f32; 3],
+    position: Vector3<f32>,
     speed: f32,
 
     rotation_enabled: bool,
@@ -37,18 +38,14 @@ impl Camera {
         &self.combined_matrix
     }
     pub fn position(&self) -> [f32; 3] {
-        self.position
+        self.position.into()
     }
 }
 
 impl Camera {
     pub fn new(window: Rc<Window>) -> Self {
         Self {
-            position: [
-                0f32,
-                0f32,
-                0f32,
-            ],
+            position: Vector3::zero(),
             speed: 0.5,
 
             rotation_enabled: false,
@@ -69,21 +66,21 @@ impl Camera {
         let mut transposed_view = self.view_matrix.clone();
         transposed_view.transpose_self();
 
-        let forward = self.speed * transposed_view
+        let forward = (self.speed * transposed_view
             * cgmath::Vector4 {
                 x:  0.0,
                 y:  0.0,
                 z: -1.0,
                 w:  0.0,
-            };
+            }).xyz();
 
-        let left = self.speed * transposed_view
+        let left = (self.speed * transposed_view
             * cgmath::Vector4 {
                 x: 1.0,
                 y: 0.0,
                 z: 0.0,
                 w: 0.0,
-            };
+            }).xyz();
 
         let half_width = self.window.size().0 as f64 / 2.0;
         let half_height = self.window.size().1 as f64 / 2.0;
@@ -93,12 +90,15 @@ impl Camera {
                 Event::KeyPressed(key, _) => {
                     use winit::event::VirtualKeyCode;
                     match key {
-                        VirtualKeyCode::S => self.position = [self.position[0] - forward.x, self.position[1] - forward.y, self.position[2] - forward.z],
-                        VirtualKeyCode::W => self.position = [self.position[0] + forward.x, self.position[1] + forward.y, self.position[2] + forward.z],
-                        VirtualKeyCode::A => self.position = [self.position[0] - left.x, self.position[1] - left.y, self.position[2] - left.z],
-                        VirtualKeyCode::D => self.position = [self.position[0] + left.x, self.position[1] + left.y, self.position[2] + left.z],
-                        VirtualKeyCode::J => self.position[1] -= 1.0,
-                        VirtualKeyCode::K => self.position[1] += 1.0,
+                        //handle movement keys
+                        VirtualKeyCode::S => self.position = self.position - forward, //[self.position[0] - forward.x, self.position[1] - forward.y, self.position[2] - forward.z],
+                        VirtualKeyCode::W => self.position = self.position + forward,
+                        VirtualKeyCode::A => self.position = self.position - left,
+                        VirtualKeyCode::D => self.position = self.position + left,
+                        VirtualKeyCode::J => self.position.y -= 1.0,
+                        VirtualKeyCode::K => self.position.y += 1.0,
+                        
+                        //enable or disable cursor lock
                         VirtualKeyCode::E => {
                             //toggle rotation
                             self.rotation_enabled = !self.rotation_enabled;
@@ -107,21 +107,14 @@ impl Camera {
                             if self.rotation_enabled {
                                 self.window
                                     .winit_window()
-                                    .set_cursor_position(
-                                        Into::<winit::dpi::PhysicalPosition<f64>>::into((
-                                            half_width,
-                                            half_height,
-                                        )),
-                                    )
+                                    .set_cursor_position(PhysicalPosition::new(half_width,half_height))
                                     .unwrap();
                             }
                         }
                         _ => {}
                     }
                 }
-                Event::KeyReleased(..) => {}
-                Event::MousePressed((_, _position)) => {}
-                Event::MouseReleased((_, _position)) => {}
+                //handle camera rotation based on cursor movement when locked
                 Event::CursorMoved(position) if self.rotation_enabled => {
                     //because cursor grab mode is set we can set cursor position and go from there
                     //do our cursor math here
@@ -141,40 +134,35 @@ impl Camera {
                         )))
                         .unwrap();
                 }
-                _ => {
-                    return;
-                } //return early if we got no input
+
+                //return early if we got no input
+                _ => {}
             }
-
-            //update our view and combined matrices
-            //TODO: only do this if we get input
-
-            let unit = Vector3 {
-                x:  0f32,
-                y:  0f32,
-                z: -1f32,
-            };
-
-            let rotation_matrix = 
-                  cgmath::Matrix4::from_angle_y(cgmath::Rad(-self.y_rotation))
-                * cgmath::Matrix4::from_angle_x(cgmath::Rad(-self.x_rotation));
-
-            let rotated_unit = rotation_matrix * Vector4::new(unit.x, unit.y, unit.z, 0.0);
-            let position: Vector3<f32> = self.position.into();
-            let rotated_unit = Point3 {
-                x: position.x + rotated_unit.x,
-                y: position.y + rotated_unit.y,
-                z: position.z + rotated_unit.z,
-            };
-
-            self.view_matrix = cgmath::Matrix4::look_at_rh(
-                self.position.into(),
-                rotated_unit,
-                cgmath::Vector3::unit_y(),
-            );
-
-            let perspective = cgmath::perspective(cgmath::Deg(45.0), self.window.size().0 as f32 / self.window.size().1 as f32, 0.1, 100.0);
-            self.combined_matrix = OPENGL_TO_WGPU_MATRIX * perspective * self.view_matrix;
         }
+
+        
+        //update our view and combined matrices
+        let unit = Vector3 {
+            x:  0f32,
+            y:  0f32,
+            z: -1f32,
+        };
+
+        let rotation_matrix = 
+              cgmath::Matrix4::from_angle_y(cgmath::Rad(-self.y_rotation))
+            * cgmath::Matrix4::from_angle_x(cgmath::Rad(-self.x_rotation));
+
+        let rotated_unit = rotation_matrix * Vector4::new(unit.x, unit.y, unit.z, 0.0);
+        let position: Vector3<f32> = self.position.into();
+        let rotated_unit: Point3<f32> = Point3::from_vec(rotated_unit.xyz() + position);
+
+        self.view_matrix = cgmath::Matrix4::look_at_rh(
+            Point3::from_vec(self.position),
+            rotated_unit,
+            cgmath::Vector3::unit_y(),
+        );
+
+        let perspective = cgmath::perspective(cgmath::Deg(45.0), self.window.size().0 as f32 / self.window.size().1 as f32, 0.1, 100.0);
+        self.combined_matrix = OPENGL_TO_WGPU_MATRIX * perspective * self.view_matrix;
     }
 }

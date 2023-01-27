@@ -62,7 +62,7 @@ impl<SceneType: Scene + 'static> App<SceneType> {
     fn render(&mut self) {
         //limit frame rate because this cpu shit is crazy
         let _frame_time = self.last_frame.elapsed().as_millis();
-        println!("Frame time: {}", _frame_time);
+        //println!("Frame time: {}", _frame_time);
 
         self.last_frame = Instant::now();
 
